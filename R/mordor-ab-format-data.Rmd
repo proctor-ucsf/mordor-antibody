@@ -1,0 +1,126 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Format data for analysis"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+```
+
+# Format the MBA antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the raw MBA data sent from
+# Diana Martin at CDC
+#-------------------------------
+d <- read_csv("~/Box sync/mordor-ab/data/untouched/mba/MORDOR MBA Raw Data Compiled 100219.csv")
+
+#-------------------------------
+# pivot longer and create formatted
+# antigen names and pathogen names
+# careful / the antigen list
+# and labels are in a specific order
+#-------------------------------
+antigens <- c("cp17","cp23",
+              "vsp3","vsp5",
+              "salb","sald",
+              "p18","p39",
+              "etec","ctb",
+              "speb",
+              
+              "hrp2","csp","glurp","lsa1","ama","pfmsp1",
+              "pvmsp1","pomsp1","pmmsp1",
+              
+              "pgp3","ct694",
+              "nie",
+              "gst"
+              )
+antigen_labs <- c(
+  "Cryptosporidium Cp27",
+  "Crptyosporidium Cp23",
+  "Giardia VSP-3",
+  "Giardia VSP-5",
+  "Salmonella LPS B",
+  "Salmonella LPS D",
+  "Campylobacter p18",
+  "Campylobacter p39",
+  "ETEC LTB",
+  "Cholera CTB",
+  "Streptococcus A",
+  "P. falciparum HRP2",
+  "P. falciparum CSP",
+  "P. falciparum GLURP-Ro",
+  "P. falciparum LSA1",
+  "P. falciparum AMA",
+  "P. falciparum MSP-1",
+  "P. vivax MSP-1",
+  "P. ovale MSP-1",
+  "P. malariae MSP-1",
+  "Trachoma Pgp3",
+  "Trachoma CT694",
+  "Strongyloides NIE",
+  "GST negative control"
+)
+
+
+d2 <- d %>%
+  rename(dbsid=description) %>%
+  pivot_longer(cols = c(-type,-well,-dbsid),
+               names_to = "antigen", 
+               values_to = "mfi") %>%
+  mutate(antigenf = factor(antigen, levels=antigens, labels = antigen_labs)) %>%
+  mutate(pathogen = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia",
+    antigen %in% c("salb","sald") ~ "Salmonella",
+    antigen %in% c("p18","p39") ~ "Campylobacter",
+    antigen %in% c("etec") ~ "ETEC",
+    antigen %in% c("ctb") ~ "Cholera",
+    antigen %in% c("speb") ~ "Streptococcus",
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1") ~ "P. falciparum",
+    antigen %in% c("pvmsp1") ~ "P. vivax",
+    antigen %in% c("pomsp1") ~ "P. ovale",
+    antigen %in% c("pmmsp1") ~ "P. malariae",
+    antigen %in% c("nie") ~ "Strongyloides",
+    antigen %in% c("pgp3","ct694") ~ "Trachoma",
+    antigen %in% c("gst") ~ "Neg control"
+  ) ) %>%
+    mutate(pathogen = factor(pathogen,levels=c("Cryptosporidium","Giardia","Salmonella","Campylobacter","ETEC","Cholera","Streptococcus","P. falciparum","P. vivax","P. ovale","P. malariae","Strongyloides","Trachoma","Neg control"))
+           ) %>%
+  select(dbsid,type,well,pathogen,antigen,antigenf,mfi)
+        
+```
+
+Summarize the data
+```{r summarize mba data}
+summary(d2)
+
+```
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
