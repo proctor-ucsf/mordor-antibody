@@ -35,6 +35,18 @@ source(here("R","mordor-ab-Config.R"))
 #-------------------------------
 d <- read_csv("~/Box sync/mordor-ab/data/untouched/mba/MORDOR MBA Raw Data Compiled 100219.csv")
 
+
+#-------------------------------
+# a couple of the DBS IDs include
+# "Rerun" in the field. Cut this
+# out of the ID
+# trim all whitespace from the IDs
+# just in case
+#-------------------------------
+d$description[grep(" Rerun", d$description)]
+d$description <- gsub(" Rerun","",d$description)
+d$description <- str_trim(d$description)
+
 #-------------------------------
 # pivot longer and create formatted
 # antigen names and pathogen names
@@ -82,7 +94,6 @@ antigen_labs <- c(
   "GST negative control"
 )
 
-
 d2 <- d %>%
   rename(dbsid=description) %>%
   pivot_longer(cols = c(-type,-well,-dbsid),
@@ -117,6 +128,169 @@ summary(d2)
 
 ```
 
+# Format morbidity data
+
+Read in the final morbidity dataset shared by Jermey Keenan in December 2019.  Victoria Li originally wrote the code below, spliced into this Rmd file.
+
+```{r format morbidity}
+#-------------------------------
+# read in the full morbidity file
+#-------------------------------
+md <- read_csv("~/Box sync/mordor-ab/data/untouched/morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
+                      col_types = cols(code_bspot_ = col_character(),
+                                       arm = col_character(),
+                                       txlabelgwu = col_character()))
+
+
+#-------------------------------
+# Select relevant variables 
+# rename variables to be more
+# convenient
+#-------------------------------
+md2 <- md %>% 
+  select(dbsid=code_bspot_,
+         clname = gwu,
+         gwunotes_,
+         masterphase,
+         masterperson_mcd,
+         arm,
+         txlabelgwu,
+         studypop = studypop_,
+         phase = phaseidmep,
+         sex = gendermcd_,
+         pf_thicksmear = thicksmear_cons_bsmear_,
+         pf_density = officialdensity_bsmear_,
+         pf_gameto = gameto_bsmear_,
+         contains("age")
+         ) %>% 
+  mutate(sex = factor(sex,levels=c("FEMALE","MALE"),labels = c("female","male")),
+         dbsid = str_trim(dbsid)
+         )
+  
+#-------------------------------
+# filter out observations with
+# gwunotes_ not missing (indicates a problem observation)
+#
+# create a community ID variable
+# that isn't based on names
+#-------------------------------
+md3 <- md2 %>% 
+  filter(is.na(gwunotes_)) %>%
+  select(-gwunotes_) %>%
+  mutate(cluster_name = str_to_upper(clname))
+md3$clusterid <- paste0("C",group_indices(md3,cluster_name))
+  
+#-------------------------------
+# there are many age varibles
+# do some reconciliation to
+# harmonize and create a single
+# child age
+#
+# TO BE UPDATED WITH INPUT FROM
+# JEREMY
+#
+# use agecc_mcd as the reference
+# age, but for children with
+# (a) missing values
+# (b) values < 0
+# (c) values > 59
+# replace it with values from
+# agemosblood_
+#-------------------------------
+md4 <- md3 %>%
+  mutate(agem = agecc_mcd,
+         agem = ifelse(is.na(agem),agemosblood_,agem),
+         agem = ifelse(agem<0 & agemosblood_ >=0,agemosblood_, agem),
+         agem = ifelse(agem>59 & agemosblood_ <=agem,agemosblood_, agem))
+```
+
+
+# Merge DBS with morbidity data
+
+Merge the two datasets
+
+```{r merge antibody and morbidity data}
+
+#-------------------------------
+# join to the DBS measures
+#-------------------------------
+d3 <- d2 %>%
+  left_join(md4,by = "dbsid")
+
+
+#-------------------------------
+# There are 53 / 5699 (0.9%) 
+# of the DBS specimen results
+# that do not match to the
+# morbidity file
+# print the DBS IDs and 
+# then put to the side for now
+#-------------------------------
+dbs_nomatch <- d3 %>%
+  filter(is.na(cluster_name)) %>%
+  select(dbsid,antigen,mfi) %>%
+  pivot_wider(id_cols = dbsid, names_from = "antigen", values_from = "mfi")
+
+d4 <- d3 %>%
+  filter(!is.na(cluster_name))
+
+write_csv(dbs_nomatch,"~/box sync/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
+
+
+```
+
+
+# Re-randomize for masking
+
+Re-randomize community assignments. The morbidity file includes masked assignments (sun, moon) but they are not re-randomized. Save the real assignments on the side and use re-randomized labels until the main analyses are all finished. Then, we will unmask by updating this script to merge in the real assignments.
+
+```{r re-randomize community assignments}
+#-------------------------------
+# store the real treatment
+# assignments, put to the side
+#-------------------------------
+comd <- d4 %>%
+  select(clusterid,arm) %>%
+  group_by(clusterid) %>%
+  slice(1)
+write_csv(comd,"~/box sync/mordor-ab/data/final/mordor-ab-tr.csv")
+
+#-------------------------------
+# create a set of re-randomized
+# treatment labels
+#-------------------------------
+set.seed(12345)
+comd_rr <- comd %>%
+  select(clusterid) %>%
+  ungroup() %>%
+  mutate(arm = sample(rep(c("sun","moon"),15),size=30,replace=FALSE))
+
+#-------------------------------
+# merge re-randomized (shuffled)
+# labels to the antibody data
+#-------------------------------
+d5 <- d4 %>%
+  select(-arm) %>%
+  left_join(comd_rr,by="clusterid") %>%
+  mutate(arm = factor(arm,levels=c("sun","moon")))
+
+```
+
+# Save analysis data
+
+```{r save analysis data}
+#-------------------------------
+# select variables, summarize
+# and save data
+#-------------------------------
+d6 <- d5 %>%
+  select(clusterid,phase,arm,agem,sex,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi)
+
+summary(d6)
+write_rds(d6,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.rds")
+write_csv(d6,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.csv")
+
+```
 
 # Session Info
 ```{r session info}
