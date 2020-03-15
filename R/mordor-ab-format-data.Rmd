@@ -247,6 +247,23 @@ table(d4$agem[d4$antigen=="vsp3"]>60)
 d4 <- d4 %>%
   filter(agem <= 60)
 
+#-------------------------------
+# there are 19 children who
+# have matches between the
+# morbidity file and the DBS
+# data, but do not have a unique
+# childid (masterperson_mcd is missing)
+#
+# for these children assign
+# a random ID
+#-------------------------------
+table(is.na(d4$childid[d4$antigen=="vsp3"]))
+newids <- data.frame(dbsid = d4$dbsid[is.na(d4$childid) & d4$antigen=="vsp3"],childid_recode = paste0("childid recode ",1:19),stringsAsFactors = FALSE)
+d4 <- d4 %>%
+  left_join(newids, by = "dbsid") %>%
+  mutate(childid = ifelse(is.na(childid),childid_recode,childid))
+
+
 ```
 
 
