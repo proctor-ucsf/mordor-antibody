@@ -69,7 +69,7 @@ antigens <- c("cp17","cp23",
               )
 antigen_labs <- c(
   "Cryptosporidium Cp17",
-  "Crptyosporidium Cp23",
+  "Cryptosporidium Cp23",
   "Giardia VSP-3",
   "Giardia VSP-5",
   "Salmonella LPS B",
