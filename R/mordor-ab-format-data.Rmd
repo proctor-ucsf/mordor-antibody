@@ -68,7 +68,7 @@ antigens <- c("cp17","cp23",
               "gst"
               )
 antigen_labs <- c(
-  "Cryptosporidium Cp27",
+  "Cryptosporidium Cp17",
   "Crptyosporidium Cp23",
   "Giardia VSP-3",
   "Giardia VSP-5",
@@ -149,6 +149,7 @@ md <- read_csv("~/Box sync/mordor-ab/data/untouched/morbidity/MORDOR-Morbidity-m
 #-------------------------------
 md2 <- md %>% 
   select(dbsid=code_bspot_,
+         childid = masterperson_mcd,
          clname = gwu,
          gwunotes_,
          masterphase,
@@ -237,6 +238,15 @@ d4 <- d3 %>%
 write_csv(dbs_nomatch,"~/box sync/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
 
 
+#-------------------------------
+# There are 4 children who have
+# ages > 60 months
+# exclude them
+#-------------------------------
+table(d4$agem[d4$antigen=="vsp3"]>60)
+d4 <- d4 %>%
+  filter(agem <= 60)
+
 ```
 
 
@@ -276,6 +286,344 @@ d5 <- d4 %>%
 
 ```
 
+
+# Seropositivity cutoffs
+
+Create indicators of seropositivity for each antigen.  For antigens without cutoffs derived from external specimens (ROC, unexposed populations) use Gaussian mixture models.  For enterics, restrict the population to very young children to ensure sufficient differentiation between seronegative and seropositive subpopulations, following our previous work (https://www.ncbi.nlm.nih.gov/pubmed/31424386).
+
+
+## ROC-based cutoffs
+```{r external seropositivity cutoffs}
+#-----------------------------
+# add external seropositivity
+# cutoffs, shared by CDC in:
+# MORDOR Antigen Info 110419.docx
+#-----------------------------
+d6 <- d5 %>%
+  mutate(excut = case_when(
+    antigen == "cp17" ~ 290,
+    antigen == "cp23" ~ 945,
+    antigen == "vsp3" ~ 154,
+    antigen == "vsp5" ~ 147,
+    antigen == "hrp2" ~ 5336,
+    antigen == "csp"  ~ 926,
+    antigen == "glurp"~ 123,
+    antigen == "lsa1" ~ 447,
+    antigen == "ama"  ~ 646,
+    antigen == "pfmsp1" ~ 221,
+    antigen == "pvmsp1" ~ 787,
+    antigen == "pomsp1" ~ 462,
+    antigen == "pmmsp1" ~ 431,
+    antigen == "pgp3" ~ 1613,
+    antigen == "ct694" ~ 457,
+    antigen == "nie" ~ 3523,
+    TRUE ~ NA_real_
+  )
+         
+         )
+```
+
+## Mixture model cutoffs
+
+
+Work with log10 values
+```{r log10 mfi}
+#-----------------------------
+# work with log10 MFI values
+# for MFI values <=0, set to 1
+# before the log transform
+#-----------------------------
+table(d6$antigenf,d6$mfi<=0)
+d7 <- d6 %>%
+  mutate(logmfi = ifelse(mfi<=0,log10(1),log10(mfi)))
+
+```
+
+
+Plot antibody distributions
+
+```{r antibody distributions, fig.width=12, fig.height=12}
+
+pcols <- cbpal
+
+
+# custom log labels
+log10labs <- c( 
+  expression(10^0),
+  expression(10^1),
+  expression(10^2),
+  expression(10^3),
+  expression(10^4)
+)
+
+p <- ggplot(data=d7 %>% filter(agem<=12 & logmfi>0),aes(x=logmfi)) +
+  facet_wrap(~antigenf,nrow=6,ncol=4,scales="free_y") +
+  geom_line(stat = "density")+
+  scale_x_continuous(limits = c(0,4.5),breaks = 0:4,labels=log10labs) +
+  # scale_fill_manual(values=pcols) +
+  # scale_color_manual(values=pcols) +
+  labs(x="Luminex Response (MFI-bg)") +
+  theme_minimal(base_size=16) +
+  theme(legend.position = "none")
+
+p
+
+```
+
+
+```{r mixture fit function}
+#-----------------------------
+# mixture model fit function
+#-----------------------------
+fitmix <- function(x,lambda,k) {
+  mmfit <- normalmixEM(x,lambda=lambda,k=k)
+  mmcut <- mmfit$mu[order(mmfit$mu)][1]+3*mmfit$sigma[order(mmfit$mu)][1]
+  cat(summary(mmfit),"\nCutoff value:",mmcut,"(log10 MFI), or:",
+      round(10^mmcut),"(MFI)\n\n")
+  # pull out fitted densities
+  denmat <- matrix(NA,nrow=length(x),ncol=k)
+  denord <- order(mmfit$mu)
+  for(i in 1:k) {
+    j <- denord[i]
+    denmat[,i] <- mmfit$lambda[j] * dnorm(x,mean=mmfit$mu[j],sd=mmfit$sigma[j])
+  }
+  denmat <- data.frame(denmat)
+  colnames(denmat) <- paste("den",1:k,sep="")
+  # return original values plus fitted densities in a dataframe 
+  # also return the cutoff value and normalmixEM object
+  xden <- data.frame(x=x,denmat)
+  list(xden=xden,mmcut=mmcut,mmfit=mmfit)
+  
+}
+
+```
+
+
+
+```{r mixture model seropositivity cutoffs}
+#-----------------------------
+# mixture model fits
+# for enterics
+#
+# limited to children <12 mos
+#
+# store densities of mixture distributions
+# and estimated cutoffs
+#
+# the NIE model does not converge
+# so exclude
+#-----------------------------
+dmmcut <- d7 %>%
+  filter(agem <= 12 & logmfi>0) %>%
+  filter(antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","sald","salb","etec","ctb","speb")) %>%
+  mutate(antigenf = factor(antigenf))
+
+
+set.seed(1234)
+mixdens <- foreach(ab=levels(dmmcut$antigenf),.combine=rbind) %do% {
+  cat("\n\n Mixture model fit for ",ab,"\n\n")
+  mixf <- fitmix(x=dmmcut$logmfi[dmmcut$antigenf==ab],lambda=0.5,k=2)
+  di <- mixf$xden
+  di$mmcut <- mixf$mmcut
+  di$antigenf=ab
+  di <- di %>% arrange(x) %>% select(antigenf,mmcut,everything())
+  di
+}
+
+mmcuts <- mixdens %>%
+  group_by(antigenf) %>% 
+  filter(row_number()==1) %>% select(antigenf,mmcut) %>% ungroup() %>%
+  mutate(antigenf = factor(antigenf,levels=levels(d7$antigenf)))
+
+
+#-----------------------------
+# merge in the mixture cutoffs
+# to the main dataset
+#-----------------------------
+d8 <- left_join(d7,mmcuts,by=c("antigenf"))
+
+
+```
+
+
+
+### Figure of antibody mixture distributions
+
+```{r Ab mixture distribution figure, fig.height=12, fig.width=12}
+#-----------------------------
+# Get the mixture density distributions
+# set the pathogen field to an arbitrary value (Giardia) to 
+# mesh with the global ggplot aesthetics
+#-----------------------------
+plotmixdens <- mixdens %>%
+  distinct() %>%
+  mutate(pathogen="Giardia",
+         antigenf = factor(antigenf,levels=levels(d8$antigenf)))
+
+#-----------------------------
+# and custom log10 labels (log10labs)
+# defined in a previous code chunk
+#-----------------------------
+# pcols <- c(cred,corange,cgreen,cteal,cblue,cgrey,cmagent)
+# pcols <- c(corange,cred,cmagent,cblue,cteal,cgreen,cgrey)
+# pcols <- vircols
+
+pmix <- ggplot(data = d8 %>% filter(agem <= 12 & logmfi>0), aes(x=logmfi)) +
+  facet_wrap(~antigenf,nrow=6,ncol=4,scales="free_y") +
+  # plot empirical smoothed distribution
+  geom_density(color=NA,fill=vircols[3],alpha=0.4) +
+  geom_rug(color = "gray20",alpha = 0.2) +
+  # plot fitted mixture distributions
+  geom_line(data=plotmixdens,aes(x=x,y=den1), color = "gray40") +
+  # add vertical lines for the cutoff values
+  geom_vline(aes(xintercept=log10(excut))) +
+  geom_vline(aes(xintercept=mmcut),linetype=2) +
+  # labels and formatting
+  scale_x_continuous(limits = c(0,4.5),breaks = 0:4,labels=log10labs) +
+  # coord_cartesian(ylim=c(0,2)) +
+  labs(x="Luminex Response (MFI-bg)", title = "Antibody distributions with mixture model cutoffs") +
+  # scale_fill_manual(values=pcols) +
+  # scale_color_manual(values=pcols) +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "none")
+
+pmix
+
+
+```
+
+The mixture model fits look very reasonable for _Cryptosporidium_, _Giardia_, and _Salmonella_ but do not look reasonable for the other bacterial pathogens. 
+
+Try something more complicated.  For children with longidudinal measurements, identify those who had a 100-fold increase in MFI. Fit the distribution among their original MFI levels.
+
+
+
+```{r presumed unexposed}
+#-------------------------------
+# identify children with
+# longitudinal measurements
+# subset to them
+#-------------------------------
+dl <- d8 %>%
+  ungroup() %>%
+  group_by(childid,antigen) %>%
+  mutate(nobs = n(),
+         obsnum = row_number()) %>%
+  filter(nobs>1 & nobs < 6)
+
+#-------------------------------
+# further subset to children 
+# who were < 12 months at their
+# first measurement
+#-------------------------------
+dl2 <- dl %>%
+  group_by(childid,antigen) %>%
+  mutate(first_young = ifelse(agem < 12 & obsnum < nobs, 1,0),
+         first_young = max(first_young)) %>%
+  filter(first_young == 1) 
+
+
+#-------------------------------
+# calculate the change in MFI
+# between measurements
+#-------------------------------
+dl3 <- dl2 %>%
+  group_by(childid,antigen) %>%
+  arrange(antigen,childid,phase) %>%
+  mutate(dlogmfi = lead(logmfi)-logmfi)
+
+#-------------------------------
+# restrict to observations where
+# the MFI subsequently increased
+# by at least 2 (on log10 scale)
+# equivalent to a 100-fold increase
+#-------------------------------
+dl4 <- dl3 %>%
+  filter(dlogmfi>2) %>%
+  filter(antigen %in% c("p18","p39","salb","sald","etec","ctb","speb")) %>%
+  ungroup() %>%
+  group_by(antigen) %>%
+  mutate(meanmfi = mean(logmfi),
+         sdmfi = sd(logmfi),
+         pucut = meanmfi + 3*sdmfi) %>%
+  select(-meanmfi,sdmfi)
+
+table(dl4$antigen)
+
+#-------------------------------
+# merge the presumed unexposed
+# cutoffs back to the main data
+#-------------------------------
+pucuts <- dl4 %>%
+  select(antigen,pucut) %>%
+  group_by(antigen,pucut) %>%
+  slice(1)
+
+d9 <- d8 %>%
+  left_join(pucuts,by="antigen")
+  
+```
+
+Figure of distributions among presumed unexposed
+```{r plot presumed unexposed distribution}
+#-------------------------------
+# plot distribution
+# among presumed unexposed
+#-------------------------------
+
+punexp <- ggplot(data=dl4, aes(x = logmfi)) + 
+  facet_wrap(~antigenf,nrow=4,ncol=2,scales="free_y") +
+  # plot empirical smoothed distribution
+  geom_density(color=NA,fill=vircols[3],alpha=0.4) +
+  geom_rug(color = "gray20",alpha = 0.5) +
+
+  # add vertical lines for the cutoff values
+  geom_vline(aes(xintercept=pucut)) +
+  # geom_vline(aes(xintercept=mmcut),linetype=2) +
+  # labels and formatting
+  scale_x_continuous(limits = c(0,4.5),breaks = 0:4,labels=log10labs) +
+  # coord_cartesian(ylim=c(0,2)) +
+  labs(x="Luminex Response (MFI-bg)",title="Distribution among presumed unexposed") +
+  # scale_fill_manual(values=pcols) +
+  # scale_color_manual(values=pcols) +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "none")
+
+punexp
+
+```
+
+Figure of cutoff values selected for each antigen (based on external samples or presumed unexposed)
+```{r cutoff distribution figure, fig.height=12, fig.width=12}
+
+pdens <- ggplot(data = d9 %>% filter(agem <= 12 & logmfi>0), aes(x=logmfi)) +
+  facet_wrap(~antigenf,nrow=6,ncol=4,scales="free_y") +
+  # plot empirical smoothed distribution
+  geom_density(color=NA,fill=vircols[3],alpha=0.4) +
+  geom_rug(color = "gray20",alpha = 0.2) +
+  # add vertical lines for the cutoff values
+  geom_vline(aes(xintercept=log10(excut))) +
+  geom_vline(aes(xintercept=pucut),linetype=2) +
+  # labels and formatting
+  scale_x_continuous(limits = c(0,4.5),breaks = 0:4,labels=log10labs) +
+  # coord_cartesian(ylim=c(0,2)) +
+  labs(x="Luminex Response (MFI-bg)", title = "Antibody distributions with cutoffs") +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "none")
+
+pdens
+
+
+```
+
+```{r final seropositivity cutoffs}
+d10 <- d9 %>%
+  mutate(serocut = ifelse(is.na(excut),round(10^pucut,0),excut),
+         serocut_desc = ifelse(is.na(excut),"presumed unexp","external"),
+         seropos = ifelse(mfi>serocut,1,0))
+```
+
+
 # Save analysis data
 
 ```{r save analysis data}
@@ -283,12 +631,12 @@ d5 <- d4 %>%
 # select variables, summarize
 # and save data
 #-------------------------------
-d6 <- d5 %>%
-  select(clusterid,phase,arm,agem,sex,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi)
+d11 <- d10 %>%
+  select(clusterid,phase,arm,agem,sex,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
 
-summary(d6)
-write_rds(d6,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.rds")
-write_csv(d6,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.csv")
+summary(d11)
+write_rds(d11,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.rds")
+write_csv(d11,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.csv")
 
 ```
 
