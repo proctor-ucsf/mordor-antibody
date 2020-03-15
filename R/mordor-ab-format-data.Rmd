@@ -633,7 +633,7 @@ d10 <- d9 %>%
 # and save data
 #-------------------------------
 d11 <- d10 %>%
-  select(clusterid,phase,arm,agem,sex,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
+  select(clusterid,phase,arm,childid,agem,sex,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
 
 summary(d11)
 write_rds(d11,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.rds")
