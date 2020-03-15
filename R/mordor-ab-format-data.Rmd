@@ -447,7 +447,7 @@ d8 <- left_join(d7,mmcuts,by=c("antigenf"))
 
 
 
-### Figure of antibody mixture distributions
+Figure of antibody mixture distributions
 
 ```{r Ab mixture distribution figure, fig.height=12, fig.width=12}
 #-----------------------------
@@ -494,9 +494,10 @@ pmix
 
 The mixture model fits look very reasonable for _Cryptosporidium_, _Giardia_, and _Salmonella_ but do not look reasonable for the other bacterial pathogens. 
 
+
+## Cutoffs based on presumed unexposed
+
 Try something more complicated.  For children with longidudinal measurements, identify those who had a 100-fold increase in MFI. Fit the distribution among their original MFI levels.
-
-
 
 ```{r presumed unexposed}
 #-------------------------------
