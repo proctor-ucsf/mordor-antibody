@@ -1,0 +1,360 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Compare age-dependent means and seroprevalence by arm"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Compare age-dependent mean antibody levels and seroprevalence between the placebo and biannual azithromycin arms. 
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+# drop the trachoma, strongyloides, and GST negative control values
+d2 <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf))
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- d2 %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phase) %>%
+  mutate(seropos = max(seropos)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  ),
+  antigenf = factor(antigenf,levels = c(
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+    "Salmonella LPS B or D",
+    "Campylobacter p18 or p39") )
+         ) %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
+
+
+```
+
+# Estimate age-dependent means by arm
+
+```{r age-dependent means by arm}
+#-----------------------------
+# create an indicator for 
+# children living in intervention
+# and control communities
+#
+# create a dummy indicator equal
+# to 1 for all communities to zero
+# out the marginal predictions
+# over all community random effects
+#
+# create a factor variable
+# for clusterid (for model)
+#-----------------------------
+d3 <- d2 %>%
+  mutate(tr0 = ifelse(arm == "sun",1,0),
+         tr1 = ifelse(arm == "moon",1,0),
+         dummy = 1,
+         clusteridf = factor(clusterid)
+         )
+
+#----------------------------------------
+# fit a GAM model fitting a separate
+# spline by age for each group
+# estimate simulatenous 95% confidence 
+# intervals
+#----------------------------------------
+
+fit_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
+  cat("\n Estimating splines for",abi)
+  di <- d3 %>% filter(antigenf == abi)
+  fit_age <- mgcv::gam(logmfi ~ s(agem,bs="cr",by=tr0) + 
+                         s(agem,bs="cr",by=tr1) + 
+                         s(clusteridf,bs="re",by=dummy), 
+                       data=di)
+  newd0 <- di %>%  mutate(dummy=0,tr0=0,tr1=1)
+  newd1 <- di %>%  mutate(dummy=0,tr0=1,tr1=0)
+  fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
+  fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
+  fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
+  
+}
+
+fit_age2 <- fit_age %>%
+  mutate(arm = ifelse(tr0==1,"sun","moon"),
+         arm = factor(arm,levels = c("sun","moon")))
+
+
+```
+
+# Estimate age-dependent seroprevalence by arm
+
+```{r age-dependent seroprevalence by arm}
+#----------------------------------------
+# fit a GAM model fitting a separate
+# spline by age for each group
+# estimate simulatenous 95% confidence 
+# intervals
+#----------------------------------------
+
+fitp_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
+  cat("\n Estimating splines for",abi)
+  di <- d3 %>% filter(antigenf == abi)
+  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr",by=tr0) + 
+                         s(agem,bs="cr",by=tr1) + 
+                         s(clusteridf,bs="re",by=dummy), 
+                       family = "binomial",
+                       data=di)
+  newd0 <- di %>%  mutate(dummy=0,tr0=0,tr1=1)
+  newd1 <- di %>%  mutate(dummy=0,tr0=1,tr1=0)
+  fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
+  fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
+  fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
+  
+}
+
+# convert linear predictor to prevalance
+fitp_age2 <- fitp_age %>%
+  mutate(arm = ifelse(tr0==1,"sun","moon"),
+         arm = factor(arm,levels = c("sun","moon"))) %>%
+  mutate(fit = expitfn(fit),
+         uprP = expitfn(uprP),
+         lwrP = expitfn(lwrP),
+         uprS = expitfn(uprS),
+         lwrS = expitfn(lwrS),
+         ) 
+
+
+
+```
+
+Repeat for composite seropositivity measures for enterics
+
+```{r age-dependent seroprevalence by arm composites}
+#----------------------------------------
+# fit a GAM model fitting a separate
+# spline by age for each group
+# estimate simulatenous 95% confidence 
+# intervals
+#----------------------------------------
+d_enteric_comps2 <- d_enteric_comps %>%
+  ungroup() %>%
+  mutate(tr0 = ifelse(arm == "sun",1,0),
+         tr1 = ifelse(arm == "moon",1,0),
+         dummy = 1,
+         clusteridf = factor(clusterid)
+         )
+
+fitp_comp_age <- foreach(abi = levels(d_enteric_comps2$antigenf), .combine = rbind) %do% {
+  cat("\n Estimating splines for",abi)
+  di <- d_enteric_comps2 %>% filter(antigenf == abi)
+  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr",by=tr0) + 
+                         s(agem,bs="cr",by=tr1) + 
+                         s(clusteridf,bs="re",by=dummy), 
+                       family = "binomial",
+                       data=di)
+  newd0 <- di %>%  mutate(dummy=0,tr0=0,tr1=1)
+  newd1 <- di %>%  mutate(dummy=0,tr0=1,tr1=0)
+  fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
+  fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
+  fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
+  
+}
+
+# convert linear predictor to prevalance
+fitp_comp_age2 <- fitp_comp_age %>%
+  mutate(arm = ifelse(tr0==1,"sun","moon"),
+         arm = factor(arm,levels = c("sun","moon"))) %>%
+  mutate(fit = expitfn(fit),
+         uprP = expitfn(uprP),
+         lwrP = expitfn(lwrP),
+         uprS = expitfn(uprS),
+         lwrS = expitfn(lwrS),
+         ) 
+
+
+
+```
+
+## Enterics and bacteria figure
+
+Age-dependent MFI figure
+```{r age-dependent means by arm figure enterics, fig.width = 6, fig.height = 12}
+#-----------------------------
+# plot age-dependent means
+# by arm
+#-----------------------------
+
+# create a variable for faceting panels by pathogen
+fit_age_enterics <- fit_age2 %>%
+  filter(antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","salb","sald","etec","ctb","speb")) %>%
+  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
+         )
+
+# labels for the panels in the plot 
+pplabs <- fit_age_enterics %>%
+  group_by(antigenf) %>%
+  select(pathogen,antigen, antigenf, arm) %>%
+  slice(1) %>%
+  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
+         )
+
+# cutoffs 
+dcuts <- fit_age_enterics %>%
+  select(pathogen, antigen, antigenf,serocut) %>%
+  group_by(pathogen, antigen, antigenf) %>%
+  slice(1) %>%
+  mutate(serocut = log10(serocut)) %>%
+  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
+         )
+
+# custom log labels
+log10labs <- c( 
+  expression(10^0),
+  expression(10^1),
+  expression(10^2),
+  expression(10^3),
+  expression(10^4)
+)
+# pcols <- cbpal[c(2,3)]
+pcols <- vircols[c(3,6)]
+plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
+  # facet by pathogen and antigen
+  facet_grid(pathogen~antigenn, drop = TRUE) +
+  # seropositivity cutoffs
+  geom_hline(data = dcuts, aes(yintercept = serocut), lty = "dashed") +
+  # MFI values
+  geom_jitter(aes(y = logmfi), width=0.3,height=0, color = "black", alpha=0.05, pch=".") +
+  # 95% CI bands for spline fit
+  geom_ribbon(aes(ymin = lwrS, ymax = uprS), color = NA, alpha = 0.4) +
+  # spline fit
+  geom_line() +
+  # labels
+  geom_text(data=pplabs, aes(x=0, y=4.6, label=antigenf, hjust=0, vjust=0), color="gray20", size=2.5)+
+  # plot aesthetics
+  scale_y_continuous(breaks = 0:4, labels = log10labs) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  coord_cartesian(ylim = c(0,4.6)) +
+  labs(x = "age, months", y = "Luminex response (MFI-bg)", tag = "A") +
+  theme_minimal() +
+  theme(
+    strip.text.x = element_blank(),
+    strip.text.y = element_blank(),
+    legend.position = "top"
+  )
+
+
+```
+
+Seroprevalence figure. Use composite estimates for pathogens with multiple antigens
+
+```{r age-dependent seroprevalence by arm figure, fig.width = 12, fig.height = 12}
+#-----------------------------
+# plot age-dependent seroprev
+# by arm for enterics
+#-----------------------------
+fitp_enterics <- fitp_age2 %>%
+  filter(pathogen %in% c("ETEC","Cholera","Streptococcus")) %>%
+  bind_rows(fitp_comp_age2) %>%
+  mutate(antigenf = factor(antigenf,levels = c(levels(fitp_comp_age2$antigenf),"ETEC LTB","Cholera CTB","Streptococcus A")))
+
+
+# labels for the panels in the plot 
+pplabs2 <- fitp_enterics %>%
+  group_by(antigenf) %>%
+  select(pathogen, antigenf, arm) %>%
+  slice(1)
+
+
+# pcols <- cbpal[c(2,3)]
+pcols <- vircols[c(3,6)]
+plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
+  # facet by pathogen
+  facet_grid(antigenf~.) +
+  # approximate pointwise 95% CIs
+  geom_ribbon(aes(ymin = lwrS, ymax = uprS), color = NA, alpha = 0.3) +
+  # spline fits
+  geom_line() +
+   # labels
+  geom_text(data=pplabs2, aes(x=0, y=1.03, label=antigenf, hjust=0, vjust=0), color="gray20", size=2.5)+
+  # plot aesthetics
+  scale_y_continuous(breaks = seq(0,1,by=0.2), labels = sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  coord_cartesian(ylim = c(0,1.04)) +
+  labs(x = "age, months", y = "seroprevalence (%)", tag = "B") +
+  theme_minimal() +
+  theme(
+    strip.text.x = element_blank(),
+    strip.text.y = element_blank(),
+    legend.position = "top"
+  )
+
+
+
+
+```
+
+```{r enterics age plot composite}
+pcurve_composite_enterics <- grid.arrange(plot_age_mfi_enterics,plot_age_seroprev_enterics,ncol=2,nrow=1,widths=c(2,1.1))
+
+ggsave(here("figures","mordor-ab-age-curves-enterics.png"),pcurve_composite_enterics, device = "png", width = 8, height = 12)
+
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
