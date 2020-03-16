@@ -22,6 +22,7 @@ library(viridisLite)
 #----------------------------
 # stats packages
 #----------------------------
+library(mixtools)
 library(mgcv)
 
 #----------------------------
