@@ -344,7 +344,7 @@ plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fi
 
 ```
 
-```{r enterics age plot composite}
+```{r enterics age plot composite, warning=FALSE, fig.width = 8, fig.height = 12}
 pcurve_composite_enterics <- grid.arrange(plot_age_mfi_enterics,plot_age_seroprev_enterics,ncol=2,nrow=1,widths=c(2,1.1))
 
 ggsave(here("figures","mordor-ab-age-curves-enterics.png"),pcurve_composite_enterics, device = "png", width = 8, height = 12)
