@@ -1,0 +1,299 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Compare arms using MFI, seroprevalence, and SCR"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Compare mean antibody levels, seroprevalence, and seroconversion rates between the placebo and biannual azithromycin arms. 
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+#-------------------------------
+# drop the trachoma, strongyloides, 
+# and GST negative control values
+#-------------------------------
+d2 <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# drop baseline measurements
+#-------------------------------
+d2 <- d2 %>%
+  filter(phase > 0)
+
+
+#-------------------------------
+# placeholder for possible 
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages without any
+# variation in antibody levels
+# (esp. enterics, which become saturated)
+#-------------------------------
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- d2 %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phase) %>%
+  mutate(seropos = max(seropos)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  ),
+  antigenf = factor(antigenf,levels = c(
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+    "Salmonella LPS B or D",
+    "Campylobacter p18 or p39") )
+         ) %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
+
+
+```
+
+# Estimate mean mfi by arm
+
+```{r means by arm}
+#-----------------------------
+# estimate means by arm
+# and difference in means
+#-----------------------------
+mu_mfi <- d2 %>%
+  group_by(pathogen,antigenf,arm) %>%
+  summarize(mean_mfi = mean(logmfi)) %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_mfi) %>%
+  rename(control = sun,
+         azithro = moon) %>%
+  mutate(diff = azithro - control)
+```
+
+```{r bootstrap mean MFI diff}
+#-----------------------------
+# bootstrap resample communities
+# with replacement to estimate
+# 95% CIs for difference in means
+#-----------------------------
+set.seed(123)
+nreps <- 1000
+ncl <- length(unique(d2$clusterid))
+bsamp <- matrix(sample(unique(d2$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
+d_mfi_boot <- d2 %>% select(clusterid,antigenf,arm,logmfi)
+mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
+  di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
+                  d_mfi_boot, by = "clusterid")
+  di %>%
+  group_by(antigenf,arm) %>%
+  summarize(mean_mfi = mean(logmfi)) %>%
+  pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_mfi) %>%
+  rename(control = sun,
+         azithro = moon) %>%
+  mutate(diff = azithro - control, 
+         bootrep = bi)
+}
+```
+
+```{r mean mfi bootstrap cis}
+#-----------------------------
+# calculate percentile 95%
+# CIs from the bootstrap
+# distribution merge to estimates
+#-----------------------------
+mu_mfi_ci <- mu_mfi_boot %>%
+  group_by(antigenf) %>%
+  mutate(mean_c_lb = quantile(control, probs = 0.025),
+         mean_c_ub = quantile(control, probs = 0.975),
+         mean_a_lb = quantile(azithro, probs = 0.025),
+         mean_a_ub = quantile(azithro, probs = 0.975),
+         diff_bmean = mean(diff),
+         diff_bse = sd(diff),
+         diff_lb = quantile(diff, probs = 0.025),
+         diff_ub = quantile(diff, probs = 0.975)) %>%
+  select(antigenf,starts_with("mean_"), starts_with("diff_")) %>%
+  slice(1)
+  
+mu_mfi2 <- mu_mfi %>%
+  left_join(mu_mfi_ci, by = "antigenf")
+  
+```
+
+```{r permutation p-values}
+#-----------------------------
+# estimate permutation p-values
+# for the difference in means
+#
+# pooling over phase 6+
+#
+# conduct the permutation
+# test on unweighted cluster
+# level means
+#-----------------------------
+clmeans_mfi <- d2 %>% 
+    group_by(clusterid,arm,pathogen,antigenf) %>%
+    summarize(mean_mfi = mean(logmfi))
+
+set.seed(87592)
+permute_mfi <- foreach(abi = levels(d2$antigenf), .combine = rbind) %do% {
+  di <- clmeans_mfi %>% filter(antigenf == abi)
+  pti <- oneway_test(mean_mfi ~ arm, data= clmeans_mfi,subset = clmeans_mfi$antigenf==abi, distribution = "exact", alternative = "two.sided")
+  data.frame(antigenf = abi, permute_p = pvalue(pti))
+  }
+
+```
+
+## Table of results
+```{r MFI means table}
+mu_mfi_table <- mu_mfi2 %>%
+  ungroup() %>%
+  left_join(permute_mfi, by = "antigenf") %>%
+  mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
+  select(antigenf,control, azithro, diff_ci, permute_p)
+
+knitr::kable(mu_mfi_table,
+             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), digits = 3) %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
+  add_header_above(c(" " = 1, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 11) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 12, end_row = 20) %>%
+  footnote(
+    symbol=c("Exact permutation P-value.")
+  )
+
+```
+
+## Figure of results
+
+```{r MFI means figure}
+#------------------------------
+# plot mean log10 MFI by arm
+#------------------------------
+
+# format the output for plotting
+mu_mfi_control <- mu_mfi2 %>%
+  ungroup() %>%
+  select(pathogen,antigenf,mean = control, mean_lb = mean_c_lb, mean_ub = mean_c_ub) %>%
+  mutate(arm = "placebo")
+mu_mfi_azithro <- mu_mfi2 %>%
+  ungroup() %>%
+  select(pathogen,antigenf,mean = azithro, mean_lb = mean_a_lb, mean_ub = mean_a_ub) %>%
+  mutate(arm = "azithromycin")
+
+mu_mfi_plot <- bind_rows(mu_mfi_control,mu_mfi_azithro) %>%
+  mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf)))) %>%
+  arrange(antigenf)
+mu_mfi_plot$group = "enterics\nand\nstrep"
+mu_mfi_plot$group[grep("P. ",mu_mfi_plot$pathogen)] <- "malaria"
+  
+# make figure
+pcols <- c(cbpal[-5],vircols[c(2,4,6,8)])
+plot_mfi_means <- ggplot(data = mu_mfi_plot, aes(x = antigenf, color = pathogen, shape = arm)) +
+  facet_grid(group~., scales = "free_y") +
+  # plot points
+  geom_errorbar(aes(ymin = mean_lb, ymax = mean_ub),width = 0.5, 
+                position = position_nudge(x = rep(c(-0.2,0.2),20))) +
+  geom_point(aes(y = mean), 
+             position = position_nudge(x = rep(c(-0.2,0.2),20)) ) +
+  
+  scale_color_manual(values = pcols) +
+  labs(x = "antigen", y = "mean log10 Luminex response\n(MFI-bg)", tag = "A") +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text.y = element_blank()
+  )
+
+```
+
+```{r MFI diff figure}
+#------------------------------
+# plot the difference between
+# arms (companion to the means)
+#------------------------------
+
+# format the output for plotting
+mu_mfi_plot2 <- mu_mfi2 %>%
+  ungroup() %>%
+  mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
+mu_mfi_plot2$group = "enterics\nand\nstrep"
+mu_mfi_plot2$group[grep("P. ",mu_mfi_plot2$pathogen)] <- "malaria"
+
+# make the figure
+pcols <- c(cbpal[-5],vircols[c(2,4,6,8)])
+plot_mfi_diff <- ggplot(data = mu_mfi_plot2, aes(x = antigenf, y = diff, color = pathogen)) +
+  facet_grid(group~., scales = "free_y") +
+  geom_hline(yintercept = 0, color = "gray60") +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.5) +
+  geom_point() +
+  scale_color_manual(values = pcols) +
+  labs(x = NULL, y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "B") +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text.y = element_text(angle = 0)
+  )
+
+
+  
+```
+
+```{r mfi composite figure, fig.width = 10, fig.height = 6}
+plot_mfi_comp <- grid.arrange(plot_mfi_means,plot_mfi_diff,ncol=2,nrow=1, widths = c(4,4))
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+

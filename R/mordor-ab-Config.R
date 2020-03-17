@@ -24,6 +24,7 @@ library(viridisLite)
 #----------------------------
 library(mixtools)
 library(mgcv)
+library(coin)
 
 #----------------------------
 # set up for parallel computing
