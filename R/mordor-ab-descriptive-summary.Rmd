@@ -134,7 +134,7 @@ plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit))
   
   # plot aesthetics
   scale_y_continuous(breaks = 0:4, labels = log10labs) +
-  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=6)) +
   coord_cartesian(ylim = c(0,4.5)) +
   labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "A") +
   theme(
@@ -264,7 +264,7 @@ plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit)) +
   
   # plot aesthetics
   scale_y_continuous(breaks = 0:4, labels = log10labs) +
-  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=6)) +
   coord_cartesian(ylim = c(0,4.5)) +
   labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "A") +
   theme(
@@ -278,38 +278,17 @@ plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit)) +
 ```{r distribution malaria ages 0-12 mo}
 #-----------------------------
 # plot distribution among
-# ages 0-12 months
+# ages 12-59 months
 #-----------------------------
 hbreaks <- seq(0,4.6,by=0.1)
-plot_dist_malaria_under12mo <- ggplot(data = fit_age_malaria %>% filter(agem<=12), aes(x = logmfi)) +
+plot_dist_malaria_12plus <- ggplot(data = fit_age_malaria %>% filter(agem>12), aes(x = logmfi)) +
   facet_grid(antigenf~.) +
   geom_histogram(aes(x = logmfi), breaks = hbreaks, color = NA, fill=pcol, alpha = 0.8)+
   geom_vline(data = dcuts_malaria, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
   scale_x_continuous(breaks = 0:4, labels = log10labs) +
   scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 0-12 mo", tag = "B") +
-  coord_flip(ylim = c(0,400), xlim = c(0,4.5))+
-  theme(
-    legend.position = "none", 
-    strip.text.y = element_blank()
-  )
-
-```
-
-```{r distribution malaria ages 0-12 mo}
-#-----------------------------
-# plot distribution among
-# ages 0-24 months
-#-----------------------------
-hbreaks <- seq(0,4.6,by=0.1)
-plot_dist_malaria_under24mo <- ggplot(data = fit_age_malaria %>% filter(agem<=24), aes(x = logmfi)) +
-  facet_grid(antigenf~.) +
-  geom_histogram(aes(x = logmfi), breaks = hbreaks, color = NA, fill=pcol, alpha = 0.8)+
-  geom_vline(data = dcuts_malaria, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
-  scale_x_continuous(breaks = 0:4, labels = log10labs) +
-  scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 0-24 mo", tag = "B") +
-  coord_flip(ylim = c(0,700), xlim = c(0,4.5))+
+  labs(x = NULL, y = "N observations", title = "Ages 12-59 mo", tag = "B") +
+  coord_flip(ylim = c(0,500), xlim = c(0,4.5))+
   theme(
     legend.position = "none", 
     strip.text.y = element_blank()
@@ -329,7 +308,7 @@ plot_dist_malaria_allages <- ggplot(data = fit_age_malaria, aes(x = logmfi)) +
   geom_vline(data = dcuts_malaria, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
   scale_x_continuous(breaks = 0:4, labels = log10labs) +
   scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 0-59 mo", tag = "D") +
+  labs(x = NULL, y = "N observations", title = "Ages 0-59 mo", tag = "C") +
   coord_flip(ylim = c(0,700), xlim = c(0,4.5))+
   theme(
     legend.position = "none", 
@@ -343,9 +322,9 @@ plot_dist_malaria_allages <- ggplot(data = fit_age_malaria, aes(x = logmfi)) +
 # stitch the panels together
 # into a composite figure
 #-----------------------------
-pcurve_composite_malaria <- grid.arrange(plot_age_mfi_malaria,plot_dist_malaria_under12mo,plot_dist_malaria_under24mo,plot_dist_malaria_allages,ncol=4,nrow=1,widths=c(2.5,1.5,1.5,1.5))
+pcurve_composite_malaria <- grid.arrange(plot_age_mfi_malaria,plot_dist_malaria_12plus,plot_dist_malaria_allages,ncol=3,nrow=1,widths=c(2.5,1.5,1.5))
 
-ggsave(here("figures","mordor-ab-antibody-distributions-malaria.png"),pcurve_composite_malaria, device = "png", width = 12, height = 16)
+ggsave(here("figures","mordor-ab-antibody-distributions-malaria.png"),pcurve_composite_malaria, device = "png", width = 9, height = 16)
 
 ```
 
