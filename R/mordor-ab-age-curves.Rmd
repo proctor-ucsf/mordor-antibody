@@ -245,14 +245,6 @@ pplabs <- fit_age_enterics %>%
   mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
          )
 
-# cutoffs 
-dcuts <- fit_age_enterics %>%
-  select(pathogen, antigen, antigenf,serocut) %>%
-  group_by(pathogen, antigen, antigenf) %>%
-  slice(1) %>%
-  mutate(serocut = log10(serocut)) %>%
-  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
-         )
 
 # custom log labels
 log10labs <- c( 
@@ -262,15 +254,11 @@ log10labs <- c(
   expression(10^3),
   expression(10^4)
 )
-# pcols <- cbpal[c(2,3)]
-pcols <- vircols[c(3,6)]
+pcols <- cbpal[c(1,2)]
+# pcols <- vircols[c(3,6)]
 plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen and antigen
   facet_grid(pathogen~antigenn, drop = TRUE) +
-  # seropositivity cutoffs
-  geom_hline(data = dcuts, aes(yintercept = serocut), lty = "dashed") +
-  # MFI values
-  geom_jitter(aes(y = logmfi), width=0.3,height=0, color = "black", alpha=0.05, pch=".") +
   # 95% CI bands for spline fit
   geom_ribbon(aes(ymin = lwrS, ymax = uprS), color = NA, alpha = 0.4) +
   # spline fit
@@ -314,8 +302,8 @@ pplabs2 <- fitp_enterics %>%
   slice(1)
 
 
-# pcols <- cbpal[c(2,3)]
-pcols <- vircols[c(3,6)]
+pcols <- cbpal[c(1,2)]
+# pcols <- vircols[c(3,6)]
 plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
   facet_grid(antigenf~.) +
