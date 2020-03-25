@@ -33,7 +33,7 @@ source(here("R","mordor-ab-Config.R"))
 # load the raw MBA data sent from
 # Diana Martin at CDC
 #-------------------------------
-d <- read_csv("~/Box sync/mordor-ab/data/untouched/mba/MORDOR MBA Raw Data Compiled 100219.csv")
+d <- read_csv("~/Box sync/mordor/mordor data/data/untouched-dbs/MORDOR MBA Raw Data Compiled 100219.csv")
 
 
 #-------------------------------
@@ -136,7 +136,7 @@ Read in the final morbidity dataset shared by Jermey Keenan in December 2019.  V
 #-------------------------------
 # read in the full morbidity file
 #-------------------------------
-md <- read_csv("~/Box sync/mordor-ab/data/untouched/morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
+md <- read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
                       col_types = cols(code_bspot_ = col_character(),
                                        arm = col_character(),
                                        txlabelgwu = col_character()))
@@ -235,7 +235,10 @@ dbs_nomatch <- d3 %>%
 d4 <- d3 %>%
   filter(!is.na(cluster_name))
 
-write_csv(dbs_nomatch,"~/box sync/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
+# do not save a file for now.
+# instead, print to HTML notebook
+# write_csv(dbs_nomatch,"~/box sync/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
+dbs_nomatch
 
 
 #-------------------------------
@@ -280,7 +283,7 @@ comd <- d4 %>%
   select(clusterid,arm) %>%
   group_by(clusterid) %>%
   slice(1)
-write_csv(comd,"~/box sync/mordor-ab/data/final/mordor-ab-tr.csv")
+write_csv(comd,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
 
 #-------------------------------
 # create a set of re-randomized
@@ -653,8 +656,8 @@ d11 <- d10 %>%
   select(clusterid,phase,arm,childid,agem,sex,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
 
 summary(d11)
-write_rds(d11,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.rds")
-write_csv(d11,"~/box sync/mordor-ab/data/final/mordor-ab-analysis.csv")
+write_rds(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
+write_csv(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
 
 ```
 
