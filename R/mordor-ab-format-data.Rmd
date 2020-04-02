@@ -158,6 +158,7 @@ md2 <- md %>%
          txlabelgwu,
          studypop = studypop_,
          phase = phaseidmep,
+         testdate = testdate_,
          sex = gendermcd_,
          pf_thicksmear = thicksmear_cons_bsmear_,
          pf_density = officialdensity_bsmear_,
@@ -165,7 +166,8 @@ md2 <- md %>%
          contains("age")
          ) %>% 
   mutate(sex = factor(sex,levels=c("FEMALE","MALE"),labels = c("female","male")),
-         dbsid = str_trim(dbsid)
+         dbsid = str_trim(dbsid),
+         testdate = as.Date(testdate, "%d%b%Y")
          )
   
 #-------------------------------
@@ -653,7 +655,7 @@ d10 <- d9 %>%
 # and save data
 #-------------------------------
 d11 <- d10 %>%
-  select(clusterid,phase,arm,childid,agem,sex,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
+  select(clusterid,phase,arm,childid,agem,sex,testdate,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
 
 summary(d11)
 write_rds(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
