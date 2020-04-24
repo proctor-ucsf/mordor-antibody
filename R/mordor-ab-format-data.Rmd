@@ -139,7 +139,9 @@ Read in the final morbidity dataset shared by Jermey Keenan in December 2019.  V
 md <- read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
                       col_types = cols(code_bspot_ = col_character(),
                                        arm = col_character(),
-                                       txlabelgwu = col_character()))
+                                       txlabelgwu = col_character(),
+                                       txdate = col_character(),
+                                       dosex = col_character()))
 
 
 #-------------------------------
@@ -158,7 +160,9 @@ md2 <- md %>%
          txlabelgwu,
          studypop = studypop_,
          phase = phaseidmep,
-         testdate = testdate_,
+         testdate = testdatets_bspot_,
+         trdate = txdate,
+         dose = dosex, 
          sex = gendermcd_,
          pf_thicksmear = thicksmear_cons_bsmear_,
          pf_density = officialdensity_bsmear_,
@@ -167,7 +171,8 @@ md2 <- md %>%
          ) %>% 
   mutate(sex = factor(sex,levels=c("FEMALE","MALE"),labels = c("female","male")),
          dbsid = str_trim(dbsid),
-         testdate = as.Date(testdate, "%d%b%Y")
+         testdate = as.Date(testdate, "%d%b%Y"),
+         trdate = as.Date(trdate, "%d%b%Y")
          )
   
 #-------------------------------
@@ -176,12 +181,22 @@ md2 <- md %>%
 #
 # create a community ID variable
 # that isn't based on names
+#
+# for each community and phase
+# create a median treatment
+# date
 #-------------------------------
 md3 <- md2 %>% 
   filter(is.na(gwunotes_)) %>%
   select(-gwunotes_) %>%
   mutate(cluster_name = str_to_upper(clname))
-md3$clusterid <- paste0("C",group_indices(md3,cluster_name))
+md3$clusterid <- paste0("C",group_indices(md3,cluster_name)) 
+
+md3 <- md3 %>%
+  group_by(clusterid,phase) %>%
+  mutate(med_trdate = median(trdate,na.rm = TRUE))
+
+  
   
 #-------------------------------
 # there are many age varibles
@@ -655,7 +670,7 @@ d10 <- d9 %>%
 # and save data
 #-------------------------------
 d11 <- d10 %>%
-  select(clusterid,phase,arm,childid,agem,sex,testdate,pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
+  select(clusterid,phase,arm,childid,agem,sex,testdate,dose,trdate,med_trdate, pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
 
 summary(d11)
 write_rds(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
