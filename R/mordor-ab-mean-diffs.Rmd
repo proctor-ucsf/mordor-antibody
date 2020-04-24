@@ -216,6 +216,12 @@ knitr::kable(mu_mfi_table,
 # plot mean log10 MFI by arm
 #------------------------------
 
+# make some labels
+d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
+                       antigenf=rep("Cryptosporidium Cp17",2),
+                       arm = c("azithromycin","placebo"),
+                       mean = rep(3.5,2))
+
 # format the output for plotting
 mu_mfi_control <- mu_mfi2 %>%
   ungroup() %>%
@@ -233,17 +239,21 @@ mu_mfi_plot$group = "enterics\nand\nstrep"
 mu_mfi_plot$group[grep("P. ",mu_mfi_plot$pathogen)] <- "malaria"
   
 # make figure
-pcols <- c(cbpal[-5],vircols[c(2,4,6,8)])
-plot_mfi_means <- ggplot(data = mu_mfi_plot, aes(x = antigenf, color = pathogen, shape = arm)) +
+pcols <- c(vircols[3],cbpal[2])
+plot_mfi_means <- ggplot(data = mu_mfi_plot, aes(x = antigenf, color = arm)) +
   facet_grid(group~., scales = "free_y") +
   # plot points
-  geom_errorbar(aes(ymin = mean_lb, ymax = mean_ub),width = 0.5, 
+  geom_errorbar(aes(ymin = mean_lb, ymax = mean_ub),width = 0.4, alpha=0.8,
                 position = position_nudge(x = rep(c(-0.2,0.2),20))) +
-  geom_point(aes(y = mean), 
+  geom_point(aes(y = mean), alpha=0.8,
              position = position_nudge(x = rep(c(-0.2,0.2),20)) ) +
   
   scale_color_manual(values = pcols) +
+  # add annotation and labels
+  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.3,-0.3) ), size = 3, hjust = 0 ) +
   labs(x = "antigen", y = "mean log10 Luminex response\n(MFI-bg)", tag = "A") +
+  
+  # figure layout
   coord_flip() +
   theme_minimal() +
   theme(
@@ -267,12 +277,11 @@ mu_mfi_plot2$group = "enterics\nand\nstrep"
 mu_mfi_plot2$group[grep("P. ",mu_mfi_plot2$pathogen)] <- "malaria"
 
 # make the figure
-pcols <- c(cbpal[-5],vircols[c(2,4,6,8)])
-plot_mfi_diff <- ggplot(data = mu_mfi_plot2, aes(x = antigenf, y = diff, color = pathogen)) +
+plot_mfi_diff <- ggplot(data = mu_mfi_plot2, aes(x = antigenf, y = diff)) +
   facet_grid(group~., scales = "free_y") +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.5) +
-  geom_point() +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.4,alpha=0.6) +
+  geom_point(alpha=0.6) +
   scale_color_manual(values = pcols) +
   labs(x = NULL, y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "B") +
   coord_flip() +
@@ -289,7 +298,12 @@ plot_mfi_diff <- ggplot(data = mu_mfi_plot2, aes(x = antigenf, y = diff, color =
 ```{r mfi composite figure, fig.width = 10, fig.height = 6}
 plot_mfi_comp <- grid.arrange(plot_mfi_means,plot_mfi_diff,ncol=2,nrow=1, widths = c(4,4))
 
+ggsave(here("figures","mordor-ab-diff-mfi.png"),plot_mfi_comp,device = "png",width = 10, height = 6)
 ```
+
+# Seroprevalence
+
+
 
 # Session Info
 ```{r session info}
