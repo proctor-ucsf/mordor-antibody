@@ -64,7 +64,6 @@ d2 <- d2 %>%
 
 
 #-------------------------------
-# placeholder for possible 
 # age restrictions based on 
 # age-antibody curves
 # to exclude ages without any
@@ -552,6 +551,78 @@ plot_serop_comp <- grid.arrange(plot_serop_means,plot_serop_diff,ncol=2,nrow=1, 
 ggsave(here("figures","mordor-ab-diff-seroprev.png"),plot_serop_comp,device = "png",width = 10, height = 5)
 ```
 
+# Force of infection by arm
+
+Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence.
+
+Assume a constant force of infection ($\lambda$), equivalent to assuming an exponential model. It can be shown that a generalized linear model with a complementary log-log link fit with current status, age-prevalence data is equivalent to an exponential proportional hazards model (*Jewell and van der Laan 1995*). 
+
+$\log - \log(1-P(Y|A,W)) = \log \lambda + \log A + \beta W$
+
+Moroever, this model is also equivalent to a catalytic, SIR model with a single, constant rate parameter (*Hens et al. 2010*; *Hens et al. 2012*).
+
+
+
+```{r FOI exponential estimates}
+set.seed(123)
+foi_ests <- foreach(ab=levels(d_serop$antigenf),.combine=rbind) %do% {
+    pd <- filter(d_serop, antigenf==ab)
+    gfit <- glm(seropos ~ arm , offset=log(agem),data=pd,family=binomial(link="cloglog"))
+    gsum <- summary(gfit)
+    # estimate HR
+    lambda0 <- as.numeric(exp(gfit$coefficients[1]))
+    lambda1 <- as.numeric(exp(gfit$coefficients[1] + gfit$coefficients[2]))
+    hr <- as.numeric(exp(gfit$coefficients[2]))
+    # estimate bootstrapped 95% CI
+    clids <- unique(pd$clusterid)
+    breps <- 1000
+    bsamp <- matrix(sample(clids,size=breps*length(clids),replace=TRUE),nrow=length(clids),ncol=breps)
+    boot_lambda0s <- rep(NA,breps)
+    boot_lambda1s <- rep(NA,breps)
+    boot_hrs <- rep(NA,breps)
+    for(i in 1:breps) {
+      di <- data.frame(clusterid = bsamp[,i],stringsAsFactors = FALSE) %>% left_join(pd,by="clusterid")
+      bfit <- glm(seropos ~ arm , offset=log(agem),data=di,family=binomial(link="cloglog"))
+      boot_lambda0s[i] <- as.numeric(exp(bfit$coefficients[1]))
+      boot_lambda1s[i] <- as.numeric(exp(bfit$coefficients[1] + bfit$coefficients[2]))
+      boot_hrs[i] <- as.numeric(exp(bfit$coefficients[2]))
+    }
+    
+    # return results
+    res <- data.frame(antigenf=ab, 
+                      lambda0=lambda0,
+                      lambda0_min95 = quantile(boot_lambda0s,probs=0.025),
+                      lambda0_max95 = quantile(boot_lambda0s,probs=0.975),
+                      lambda1=lambda1,
+                      lambda1_min95 = quantile(boot_lambda1s,probs=0.025),
+                      lambda1_max95 = quantile(boot_lambda1s,probs=0.975),
+                      hr = hr,
+                      hr_min95 = quantile(boot_hrs,probs=0.025),
+                      hr_max95 = quantile(boot_hrs,probs=0.975)
+                      )
+    res
+}
+
+foi_ests_tab <- foi_ests %>%
+  mutate(lambda0c = paste0(sprintf("%1.2f",lambda0)," (",
+                            sprintf("%1.2f",lambda0_min95),", ", 
+                            sprintf("%1.2f",lambda0_max95),")"),
+         lambda1c = paste0(sprintf("%1.2f",lambda1)," (", 
+                            sprintf("%1.2f",lambda1_min95),", ", 
+                            sprintf("%1.2f",lambda1_max95),")"),
+         hrc = paste0(sprintf("%1.2f",hr)," (",
+                       sprintf("%1.2f",hr_min95),", ",
+                       sprintf("%1.2f",hr_max95),")")
+         )
+
+knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
+             caption="Average seroconversion rate (SCR) estimated from age-structured seroprevalence",
+             align = "lccc",
+             col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)"),
+             row.names = FALSE)  %>%
+  kable_styling(bootstrap_options = "striped",full_width = TRUE)
+
+```
 
 # Session Info
 ```{r session info}
