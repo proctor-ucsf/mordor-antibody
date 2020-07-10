@@ -68,9 +68,13 @@ gamCI <- function(m,newdata,nreps=10000) {
 
 
 #----------------------------
+# foiCI
 # function to estimate the
 # age-specific FOI under a
-# GAM model smooth
+# semi-parametric GAM current status proportional hazards model
+# NOTE: this function currently assumes a complementary log-log link
+#       if using a logit link (proportional odds model), then need to change
+#       the function used to obtain the derivative of the linear predictor (comments in code, below)
 #
 # @param       m : GAM model fit object from mgcv gam()
 # @param newdata : data.frame on which to make predictions from the model fit.
@@ -97,6 +101,7 @@ gamCI <- function(m,newdata,nreps=10000) {
 #          Ft_se : pointwise estimate of the standard error of the linear predictor of Ft
 #
 #                    Note: foi = ft * (exp(Ft)/(1+exp(Ft))) for a logit link
+#                          foi = ft * exp(Ft) for a complementary log-log link
 #                    See Hens et al. 2012 Modeling Infectious Disease Parameters
 #                                         Using Serological and Social Contact Data, Table 5.1
 #----------------------------
@@ -154,7 +159,10 @@ foiCI <- function(m,newdata,fdvar,eps=1e-07,level=0.95,nreps=10000) {
   sims<- MASS::mvrnorm(n = nreps, mu = coef(m), Sigma = Vb)
   Ft_bs <- X0 %*% t(sims)
   ft_bs <- Xp %*% t(sims)
-  foi_bs <- ft_bs*(exp(Ft_bs)/(1+exp(Ft_bs)))
+  # fn for proportional odds survival model (logit link, not used)
+  # foi_bs <- ft_bs*(exp(Ft_bs)/(1+exp(Ft_bs)))
+  # fn for proportional hazards survival model (complementary log-log link)
+  foi_bs <- ft_bs*exp(Ft_bs)
   
   # estimate age-specific force of infection
   # averaged over the bootstrap replicates
@@ -180,6 +188,74 @@ foiCI <- function(m,newdata,fdvar,eps=1e-07,level=0.95,nreps=10000) {
   
 }
 
+#----------------------------
+# avgFOI
+# function to estimate the
+# marginal average force of infection
+# over an age range, from a1 to a2
+# from a semi-parametric proportional hazards model
+# NOTE: this function currently assumes a complementary log-log link
+#       if using a logit link (proportional odds model), then need to change
+#       the function used to obtain predicted probabilities in Ft and Ft.bs
+#
+# @param       m : GAM model fit object from mgcv gam()
+# @param newdata : data.frame on which to make predictions from the model fit.
+#                  Must include all variables used to fit the model m.
+#                  For this particular function, should only include agey = c(a1,a2)
+# @param      a1 : Lower age range over which to average lambda(a)
+# @param      a2 : Upper age range over which to average lambda(a)
+# @param   nreps : number of replications to sample from the Bayesian posterior 
+#                  in the parametric bootstrap to estimate 95% confidence intervals
+#
+# @returns : avgFOI returns a data.frame with 1 observation and 4 variables:
+#          mufoi : average force of infection from ages a1 to a2
+#       mufoi_se : approximate standard error of the average FOI prediction
+#       mufoi_lb : lower 95% confidence interval from the posterior bootstrap simulation
+#       mufoi_ub : upper 95% confidence interval from the posterior bootstrap simulation
+#
+#                    Note: foi = ft * (exp(Ft)/(1+exp(Ft))) for a logit link
+#                          foi = ft * exp(Ft) for a complementary log-log link
+#                    See Hens et al. 2012 Modeling Infectious Disease Parameters
+#                                         Using Serological and Social Contact Data, Table 5.1
+#----------------------------
+avgFOI <- function(m,newdata,a1,a2,nreps=10000) {
+  require(mgcv)
+  require(dplyr)
+  
+  # limit the prediction data to the two time points
+  newdata <- newdata %>%
+    filter(agey %in% c(a1,a2)) %>%
+    arrange(agey)
+  
+  # get predicted seroprevalence, Ft, from GAM model
+  gFt <- predict(m, newdata)
+  # for a logit link, Ft = exp(gFt) / (1 + exp(gFt))
+  # Ft <- exp(gFt)/(1+exp(gFt))
+  # for a complementary log-log link, Ft = 1 - exp(-exp(gFt))
+  Ft <- 1 - exp(-exp(gFt))
+  
+  # average FOI over a1 to a2 is: 
+  # foi = [log(1-F(a1))-log(1-F(a2))] / (a2-a1)
+  mufoi <- (log(1-Ft[1]) - log(1-Ft[2])) / (a2-a1) 
+  
+  # parametric bootstrap simulation from the
+  # model coefficient estimates, assuming the model is true
+  X0 <- predict(m, newdata, type = "lpmatrix")
+  Vb <- vcov(m,unconditional = TRUE)
+  sims<- MASS::mvrnorm(n = nreps, mu = coef(m), Sigma = Vb)
+  gFt.bs <- X0 %*% t(sims)
+  # Ft.bs <- exp(gFt.bs)/(1+exp(gFt.bs))
+  Ft.bs <- 1 - exp(-exp(gFt.bs))
+  mufoi.bs <- (log(1-Ft.bs[1,]) - log(1-Ft.bs[2,])) / (a2-a1)
+  
+  # estimate approximate bs SE and percentile-based 95% credible interval
+  mufoi.se <- sd(mufoi.bs)
+  mufoi.ci <- quantile(mufoi.bs,probs=c(0.025,0.975))
+  res <- data.frame(mufoi,mufoi_se=mufoi.se,mufoi_lb=mufoi.ci[1],mufoi_ub=mufoi.ci[2])
+  return(res)
+}
+
+
 
 #----------------------------------
 # convert linear predictor from 
@@ -188,6 +264,15 @@ foiCI <- function(m,newdata,fdvar,eps=1e-07,level=0.95,nreps=10000) {
 expitfn <- function(x) {
   exp(x)/(1+exp(x))
 }
+
+#----------------------------------
+# convert linear predictor from 
+# a complementary log-log model to prevalance
+#----------------------------------
+cloglogfn <- function(x) {
+  1 - exp(-exp(x))
+}
+
 
 #-----------------------------
 # Function to estimate exact
