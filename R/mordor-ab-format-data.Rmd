@@ -53,41 +53,39 @@ d$description <- str_trim(d$description)
 # careful / the antigen list
 # and labels are in a specific order
 #-------------------------------
-antigens <- c("cp17","cp23",
-              "vsp3","vsp5",
-              "salb","sald",
-              "p18","p39",
+antigens <- c("p18","p39",
               "etec","ctb",
+              "salb","sald",
+              "cp17","cp23",
+              "vsp3","vsp5",
               "speb",
-              
-              "hrp2","csp","glurp","lsa1","ama","pfmsp1",
-              "pvmsp1","pomsp1","pmmsp1",
-              
+              "pfmsp1","ama","glurp","lsa1","csp","hrp2",
+              "pmmsp1","pomsp1","pvmsp1",
               "pgp3","ct694",
               "nie",
               "gst"
               )
 antigen_labs <- c(
-  "Cryptosporidium Cp17",
-  "Cryptosporidium Cp23",
-  "Giardia VSP-3",
-  "Giardia VSP-5",
-  "Salmonella LPS B",
-  "Salmonella LPS D",
   "Campylobacter p18",
   "Campylobacter p39",
   "ETEC LTB",
   "Cholera CTB",
+  "Salmonella LPS B",
+  "Salmonella LPS D",
+  "Cryptosporidium Cp17",
+  "Cryptosporidium Cp23",
+  "Giardia VSP-3",
+  "Giardia VSP-5",
   "Streptococcus A",
-  "P. falciparum HRP2",
-  "P. falciparum CSP",
+  "P. falciparum MSP-1",
+  "P. falciparum AMA",
   "P. falciparum GLURP-Ro",
   "P. falciparum LSA1",
-  "P. falciparum AMA",
-  "P. falciparum MSP-1",
-  "P. vivax MSP-1",
-  "P. ovale MSP-1",
+  "P. falciparum CSP",
+  "P. falciparum HRP2",
   "P. malariae MSP-1",
+  "P. ovale MSP-1",
+  "P. vivax MSP-1",
   "Trachoma Pgp3",
   "Trachoma CT694",
   "Strongyloides NIE",
@@ -101,22 +99,22 @@ d2 <- d %>%
                values_to = "mfi") %>%
   mutate(antigenf = factor(antigen, levels=antigens, labels = antigen_labs)) %>%
   mutate(pathogen = case_when(
-    antigen %in% c("cp17","cp23") ~ "Cryptosporidium",
-    antigen %in% c("vsp3","vsp5") ~ "Giardia",
-    antigen %in% c("salb","sald") ~ "Salmonella",
     antigen %in% c("p18","p39") ~ "Campylobacter",
     antigen %in% c("etec") ~ "ETEC",
     antigen %in% c("ctb") ~ "Cholera",
+    antigen %in% c("salb","sald") ~ "Salmonella",
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia",
     antigen %in% c("speb") ~ "Streptococcus",
-    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1") ~ "P. falciparum",
-    antigen %in% c("pvmsp1") ~ "P. vivax",
-    antigen %in% c("pomsp1") ~ "P. ovale",
+    antigen %in% c("pfmsp1","ama","glurp","lsa1","csp","hrp2") ~ "P. falciparum",
     antigen %in% c("pmmsp1") ~ "P. malariae",
+    antigen %in% c("pomsp1") ~ "P. ovale",
+    antigen %in% c("pvmsp1") ~ "P. vivax",
     antigen %in% c("nie") ~ "Strongyloides",
     antigen %in% c("pgp3","ct694") ~ "Trachoma",
     antigen %in% c("gst") ~ "Neg control"
   ) ) %>%
-    mutate(pathogen = factor(pathogen,levels=c("Cryptosporidium","Giardia","Salmonella","Campylobacter","ETEC","Cholera","Streptococcus","P. falciparum","P. vivax","P. ovale","P. malariae","Strongyloides","Trachoma","Neg control"))
+    mutate(pathogen = factor(pathogen,levels=c("Campylobacter","ETEC","Cholera","Salmonella","Cryptosporidium","Giardia","Streptococcus","P. falciparum","P. malariae","P. ovale","P. vivax","Strongyloides","Trachoma","Neg control"))
            ) %>%
   select(dbsid,type,well,pathogen,antigen,antigenf,mfi)
         
@@ -452,7 +450,7 @@ fitmix <- function(x,lambda,k) {
 #-----------------------------
 dmmcut <- d7 %>%
   filter(agem <= 12 & logmfi>0) %>%
-  filter(antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","sald","salb","etec","ctb","speb")) %>%
+  filter(antigen %in% c("p18","p39","etec","ctb","sald","salb","cp17","cp23","vsp3","vsp5","speb")) %>%
   mutate(antigenf = factor(antigenf))
 
 
@@ -578,7 +576,7 @@ dl3 <- dl2 %>%
 #-------------------------------
 dl4 <- dl3 %>%
   filter(dlogmfi>2) %>%
-  filter(antigen %in% c("p18","p39","salb","sald","etec","ctb","speb")) %>%
+  filter(antigen %in% c("p18","p39","etec","ctb","salb","sald","speb")) %>%
   ungroup() %>%
   group_by(antigen) %>%
   mutate(meanmfi = mean(logmfi),
