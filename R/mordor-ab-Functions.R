@@ -224,8 +224,8 @@ avgFOI <- function(m,newdata,a1,a2,nreps=10000) {
   
   # limit the prediction data to the two time points
   newdata <- newdata %>%
-    filter(agey %in% c(a1,a2)) %>%
-    arrange(agey)
+    filter(agem %in% c(a1,a2)) %>%
+    arrange(agem)
   
   # get predicted seroprevalence, Ft, from GAM model
   gFt <- predict(m, newdata)
