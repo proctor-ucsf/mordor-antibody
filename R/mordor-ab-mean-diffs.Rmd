@@ -76,7 +76,7 @@ d2 <- d2 %>%
 # Malaria antigens: 12 - 59 mo
 #-------------------------------
 d2 <- d2 %>%
-  filter(agem > 6) %>%
+  filter(agem >= 6) %>%
   mutate(agedrop = case_when(
     antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb","speb") & (agem > 24) ~ 1,
     antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
@@ -118,10 +118,13 @@ d_serop <- d2 %>%
   bind_rows(d_enteric_comps) %>%
   # create new factor levels that includes composite indicators
   mutate(antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Cholera CTB",
+    "Salmonella LPS B or D",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
-    "Salmonella LPS B or D",
-    "Campylobacter p18 or p39",levels(d2$antigenf)[9:20]) )
+   levels(d2$antigenf)[11:20]) )
          ) %>%
   # drop extra variables (MFI doesn't correspond to composite seropos so drop)
   dplyr::select(-mfi,-logmfi,-agedrop)
@@ -131,6 +134,19 @@ d_serop <- d2 %>%
 # Estimate mean mfi by arm
 
 ```{r means by arm}
+#-----------------------------
+# tally number of observations
+# by antigen
+#-----------------------------
+n_mfi <- d2 %>%
+  group_by(pathogen,antigenf,arm) %>%
+  mutate(nomiss = ifelse(!is.na(logmfi),1,0)) %>%
+  summarize(nobs = sum(nomiss)) %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = nobs) %>%
+  rename(control_n = sun,
+         azithro_n = moon)
+
+
 #-----------------------------
 # estimate means by arm
 # and difference in means
@@ -142,6 +158,11 @@ mu_mfi <- d2 %>%
   rename(control = sun,
          azithro = moon) %>%
   mutate(diff = azithro - control)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_mfi <- left_join(n_mfi, mu_mfi, by=c("pathogen","antigenf"))
 ```
 
 ```{r bootstrap mean MFI diff}
@@ -227,10 +248,10 @@ mu_mfi_table <- mu_mfi2 %>%
   ungroup() %>%
   left_join(permute_mfi, by = "antigenf") %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
-  select(antigenf,control, azithro, diff_ci, permute_p)
+  select(antigenf, control, azithro, diff_ci, permute_p)
 
 knitr::kable(mu_mfi_table,
-             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
+             col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*"), 
              digits = 3,
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
@@ -252,9 +273,9 @@ knitr::kable(mu_mfi_table,
 
 # make some labels
 d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
-                       antigenf=rep("Cryptosporidium Cp17",2),
+                       antigenf=rep("Campylobacter p18",2),
                        arm = c("azithromycin","placebo"),
-                       mean = rep(3.25,2))
+                       mean = rep(3.5,2))
 
 # format the output for plotting
 mu_mfi_control <- mu_mfi2 %>%
@@ -284,7 +305,7 @@ plot_mfi_means <- ggplot(data = mu_mfi_plot, aes(x = antigenf, color = arm)) +
   
   scale_color_manual(values = pcols) +
   # add annotation and labels
-  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.3,-0.3) ), size = 3, hjust = 0 ) +
+  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.3,-0.3) ), size = 3, hjust = 1 ) +
   labs(x = "antigen", y = "mean log10 Luminex response\n(MFI-bg)", tag = "A") +
   
   # figure layout
@@ -339,6 +360,19 @@ ggsave(here("figures","mordor-ab-diff-mfi.png"),plot_mfi_comp,device = "png",wid
 
 
 ```{r seroprev by arm}
+
+#-----------------------------
+# tally number of observations
+# by antigen (including composites)
+#-----------------------------
+n_serop <- d_serop %>%
+  group_by(pathogen,antigenf,arm) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss)) %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = nobs) %>%
+  rename(control_n = sun,
+         azithro_n = moon)
+
 #-----------------------------
 # estimate seroprevalence by arm
 # and difference in seroprevalence
@@ -350,6 +384,11 @@ mu_serop <- d_serop %>%
   rename(control = sun,
          azithro = moon) %>%
   mutate(diff = azithro - control)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_serop <- left_join(n_serop, mu_serop, by=c("pathogen","antigenf"))
 ```
 
 
@@ -466,9 +505,9 @@ knitr::kable(mu_serop_table,
 
 # make some labels
 d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
-                       antigenf=rep("Cryptosporidium Cp17 or Cp23",2),
+                       antigenf=rep("Campylobacter p18 or p39",2),
                        arm = c("azithromycin","placebo"),
-                       mean = rep(0.5,2))
+                       mean = rep(0.85,2))
 
 # format the output for plotting
 mu_serop_control <- mu_serop2 %>%
@@ -555,21 +594,61 @@ ggsave(here("figures","mordor-ab-diff-seroprev.png"),plot_serop_comp,device = "p
 
 Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence.
 
-Assume a constant force of infection ($\lambda$), equivalent to assuming an exponential model. It can be shown that a generalized linear model with a complementary log-log link fit with current status, age-prevalence data is equivalent to an exponential proportional hazards model (*Jewell and van der Laan 1995*). 
+We use a generalized linear model with a complementary log-log link fit with current status, age-prevalence data, equivalent to a proportional hazards model. We model the baseline hazard in age using a semi-parametric, cubic spline, $g(\cdot)$, and include a binary indicator for treatment group. Let $A$ be a child's age and let $T$ be a binary indicator for azithromycin treatment. The model is:
 
-$\log - \log(1-P(Y|A,W)) = \log \lambda + \log A + \beta W$
+\begin{equation}
+  \log - \log(1-P(Y|A,T)) = g(A) + \beta X
+\end{equation}
 
-Moroever, this model is also equivalent to a catalytic, SIR model with a single, constant rate parameter (*Hens et al. 2010*; *Hens et al. 2012*).
 
-```{r FOI exponential estimates}
+The hazard or force of infection at age $a$ is: $\lambda(a) = F'(a)/(1-F(a))$. From the definition of the hazard, we have: 
+
+$1- F(a) = \exp [ - \int_0^a \lambda(a) da ]$ and $\int_0^a \lambda(a) da = - \log [1-F(a)]$.
+
+This is the cumulative hazard. The average hazard per year (units of $a$) also divided $-\log[1-F(a)]$ by $a$.  So, all of the information is embedded in the cumulative distribution function, $F(a)$, which here is the age-dependent seroprevalence curve. 
+
+The average hazard over the age period $a_1$ to $a_2$ is:
+
+\begin{equation}
+  \int_{a_1}^{a_2} \lambda(a) da = \frac{\log[1-F(a_1)]-\log[1-F(a_2)]}{a_2 - a_1}
+\end{equation}
+
+Limit the force of infection analysis to pathogens with some evidence for seroprevalence > 0.
+
+```{r FOI  estimates}
+
+d_foi <- d_serop %>%
+  filter(antigenf %in% c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Cholera CTB",
+    "Salmonella LPS B or D",
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+    "Streptococcus A",
+    "P. falciparum MSP-1",
+    "P. falciparum AMA",
+    "P. falciparum GLURP-Ro",
+    "P. falciparum LSA1",
+    "P. malariae MSP-1"
+  )
+         ) %>%
+  mutate(antigenf = droplevels(antigenf))
+
 set.seed(123)
-foi_ests <- foreach(ab=levels(d_serop$antigenf),.combine=rbind) %do% {
-    pd <- filter(d_serop, antigenf==ab)
-    gfit <- glm(seropos ~ arm , offset=log(agem),data=pd,family=binomial(link="cloglog"))
+foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
+  
+    pd <- filter(d_foi, antigenf==ab)
+    gfit <- gam(seropos ~ s(agem, bs="cr") + arm , 
+                data=pd,
+                family=binomial(link="cloglog"))
     gsum <- summary(gfit)
-    # estimate HR
-    lambda0 <- as.numeric(exp(gfit$coefficients[1]))
-    lambda1 <- as.numeric(exp(gfit$coefficients[1] + gfit$coefficients[2]))
+    # estimate average seroconversion rate by arm
+    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "sun")
+    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "moon")
+    lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(pd$agem),a2=max(pd$agem),nreps=2)$mufoi
+    lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(pd$agem),a2=max(pd$agem),nreps=2)$mufoi
+    # estimate HR from the model 
     hr <- as.numeric(exp(gfit$coefficients[2]))
     # estimate bootstrapped 95% CI
     clids <- unique(pd$clusterid)
@@ -580,9 +659,14 @@ foi_ests <- foreach(ab=levels(d_serop$antigenf),.combine=rbind) %do% {
     boot_hrs <- rep(NA,breps)
     for(i in 1:breps) {
       di <- data.frame(clusterid = bsamp[,i],stringsAsFactors = FALSE) %>% left_join(pd,by="clusterid")
-      bfit <- glm(seropos ~ arm , offset=log(agem),data=di,family=binomial(link="cloglog"))
-      boot_lambda0s[i] <- as.numeric(exp(bfit$coefficients[1]))
-      boot_lambda1s[i] <- as.numeric(exp(bfit$coefficients[1] + bfit$coefficients[2]))
+      bfit <- gam(seropos ~ s(agem, bs="cr") + arm ,
+                  data=di,
+                  family=binomial(link="cloglog")
+                  )
+      newd0i <- data.frame(agem=c(min(di$agem),max(di$agem)), arm = "sun")
+      newd1i <- data.frame(agem=c(min(di$agem),max(di$agem)), arm = "moon")
+      boot_lambda0s[i] <- avgFOI(bfit, newdata=newd0i, a1=min(di$agem),a2=max(di$agem),nreps=2)$mufoi
+      boot_lambda1s[i] <- avgFOI(bfit, newdata=newd1i, a1=min(di$agem),a2=max(di$agem),nreps=2)$mufoi
       boot_hrs[i] <- as.numeric(exp(bfit$coefficients[2]))
     }
     
@@ -602,19 +686,19 @@ foi_ests <- foreach(ab=levels(d_serop$antigenf),.combine=rbind) %do% {
 }
 
 foi_ests_tab <- foi_ests %>%
-  mutate(lambda0c = paste0(sprintf("%1.2f",lambda0)," (",
-                            sprintf("%1.2f",lambda0_min95),", ", 
-                            sprintf("%1.2f",lambda0_max95),")"),
-         lambda1c = paste0(sprintf("%1.2f",lambda1)," (", 
-                            sprintf("%1.2f",lambda1_min95),", ", 
-                            sprintf("%1.2f",lambda1_max95),")"),
+  mutate(lambda0c = paste0(sprintf("%1.2f",lambda0*12)," (",
+                            sprintf("%1.2f",lambda0_min95*12),", ", 
+                            sprintf("%1.2f",lambda0_max95*12),")"),
+         lambda1c = paste0(sprintf("%1.2f",lambda1*12)," (", 
+                            sprintf("%1.2f",lambda1_min95*12),", ", 
+                            sprintf("%1.2f",lambda1_max95*12),")"),
          hrc = paste0(sprintf("%1.2f",hr)," (",
                        sprintf("%1.2f",hr_min95),", ",
                        sprintf("%1.2f",hr_max95),")")
          )
 
 knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
-             caption="Average seroconversion rate (SCR) estimated from age-structured seroprevalence",
+             caption="Average seroconversion rate (SCR) per year estimated from age-structured seroprevalence",
              align = "lccc",
              col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)"),
              row.names = FALSE)  %>%
@@ -625,13 +709,16 @@ knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
 ```{r foi ests figure}
 #------------------------------
 # plot SCR by arm
+# estimates are multiplied by
+# 12 to convert from per-month
+# to per-year
 #------------------------------
 
 # make some labels
 d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
-                       antigenf=rep("Cryptosporidium Cp17 or Cp23",2),
+                       antigenf=rep("Campylobacter p18 or p39",2),
                        arm = c("azithromycin","placebo"),
-                       mean = rep(0.5,2))
+                       mean = rep(4,2))
 
 # format the output for plotting
 mu_scr_control <- foi_ests %>%
@@ -644,29 +731,29 @@ mu_scr_azithro <- foi_ests %>%
   mutate(arm = "azithromycin")
 
 mu_scr_plot <- bind_rows(mu_scr_control,mu_scr_azithro) %>%
-  mutate(antigenf = factor(antigenf, levels = rev(levels(mu_serop2$antigenf)))) %>%
+  mutate(antigenf = factor(antigenf, levels = rev(levels(d_foi$antigenf)))) %>%
   arrange(antigenf)
 mu_scr_plot$group = "enterics\nand\nstrep"
-mu_scr_plot$group[grep("P. ",mu_serop_plot$pathogen)] <- "malaria"
+mu_scr_plot$group[substr(as.character(mu_scr_plot$antigenf),1,3)=="P. "] <- "malaria"
   
 # make figure
 pcols <- c(vircols[3],cbpal[2])
 plot_scr_means <- ggplot(data = mu_scr_plot, aes(x = antigenf, color = arm)) +
   facet_grid(group~., scales = "free_y") +
   # plot points
-  geom_errorbar(aes(ymin = mean_lb, ymax = mean_ub),width = 0.4, alpha=0.8,
+  geom_errorbar(aes(ymin = 12*mean_lb, ymax = 12*mean_ub),width = 0.4, alpha=0.8,
                 position = position_nudge(x = rep(c(-0.2,0.2),20))) +
-  geom_point(aes(y = mean), alpha=0.8,
+  geom_point(aes(y = 12*mean), alpha=0.8,
              position = position_nudge(x = rep(c(-0.2,0.2),20)) ) +
   
   scale_color_manual(values = pcols) +
-  scale_y_continuous(breaks = seq(0,0.3,by=0.05)) +
+  scale_y_continuous(breaks = seq(0,4,by=1)) +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.2,-0.2) ), size = 3, hjust = 1 ) +
   labs(x = "antigen", y = "force of infection\n(seroconversion rate per child-year)", tag = "A") +
   
   # figure layout
-  coord_flip(ylim=c(0,0.3)) +
+  coord_flip(ylim=c(0,4)) +
   # theme_minimal() +
   theme(
     legend.position = "none",
@@ -684,9 +771,9 @@ plot_scr_means <- ggplot(data = mu_scr_plot, aes(x = antigenf, color = arm)) +
 # format the output for plotting
 mu_scr_plot2 <- foi_ests %>%
   ungroup() %>%
-  mutate(antigenf = factor(antigenf, levels = rev(levels(mu_serop2$antigenf))))
+  mutate(antigenf = factor(antigenf, levels = rev(levels(d_foi$antigenf))))
 mu_scr_plot2$group = "enterics\nand\nstrep"
-mu_scr_plot2$group[grep("P. ",mu_serop_plot2$pathogen)] <- "malaria"
+mu_scr_plot2$group[substr(as.character(mu_scr_plot2$antigenf),1,3)=="P. "] <- "malaria"
 
 # make the figure
 plot_scr_hr <- ggplot(data = mu_scr_plot2, aes(x = antigenf, y = hr)) +
