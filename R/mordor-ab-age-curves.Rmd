@@ -70,11 +70,15 @@ d_enteric_comps <- d2 %>%
     antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
     antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
   ),
+  # create new factor levels that includes composite indicators
   antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Cholera CTB",
+    "Salmonella LPS B or D",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
-    "Salmonella LPS B or D",
-    "Campylobacter p18 or p39") )
+   levels(d2$antigenf)[11:20]) )
          ) %>%
   select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
 
@@ -114,12 +118,12 @@ d3 <- d2 %>%
 fit_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
   cat("\n Estimating splines for",abi)
   di <- d3 %>% filter(antigenf == abi)
-  fit_age <- mgcv::gam(logmfi ~ s(agem,bs="cr",by=tr0) + 
-                         s(agem,bs="cr",by=tr1) + 
+  fit_age <- mgcv::gam(logmfi ~ s(agem,bs="cr") + 
+                         arm +
                          s(clusteridf,bs="re",by=dummy), 
                        data=di)
-  newd0 <- di %>%  mutate(dummy=0,tr0=0,tr1=1)
-  newd1 <- di %>%  mutate(dummy=0,tr0=1,tr1=0)
+  newd0 <- di %>%  mutate(dummy=0, arm = "sun")
+  newd1 <- di %>%  mutate(dummy=0, arm = "moon")
   fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
   fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
   fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
@@ -127,8 +131,7 @@ fit_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
 }
 
 fit_age2 <- fit_age %>%
-  mutate(arm = ifelse(tr0==1,"sun","moon"),
-         arm = factor(arm,levels = c("sun","moon")))
+  mutate(arm = factor(arm,levels = c("sun","moon")))
 
 
 ```
@@ -146,13 +149,13 @@ fit_age2 <- fit_age %>%
 fitp_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
   cat("\n Estimating splines for",abi)
   di <- d3 %>% filter(antigenf == abi)
-  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr",by=tr0) + 
-                         s(agem,bs="cr",by=tr1) + 
+  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr") + 
+                         arm +
                          s(clusteridf,bs="re",by=dummy), 
-                       family = "binomial",
+                       family = binomial(link="cloglog"),
                        data=di)
-  newd0 <- di %>%  mutate(dummy=0,tr0=0,tr1=1)
-  newd1 <- di %>%  mutate(dummy=0,tr0=1,tr1=0)
+  newd0 <- di %>%  mutate(dummy=0, arm = "sun")
+  newd1 <- di %>%  mutate(dummy=0, arm = "moon")
   fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
   fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
   fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
@@ -161,16 +164,13 @@ fitp_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
 
 # convert linear predictor to prevalance
 fitp_age2 <- fitp_age %>%
-  mutate(arm = ifelse(tr0==1,"sun","moon"),
-         arm = factor(arm,levels = c("sun","moon"))) %>%
-  mutate(fit = expitfn(fit),
-         uprP = expitfn(uprP),
-         lwrP = expitfn(lwrP),
-         uprS = expitfn(uprS),
-         lwrS = expitfn(lwrS),
+  mutate(arm = factor(arm,levels = c("sun","moon"))) %>%
+  mutate(fit = cloglogfn(fit),
+         uprP = cloglogfn(uprP),
+         lwrP = cloglogfn(lwrP),
+         uprS = cloglogfn(uprS),
+         lwrS = cloglogfn(lwrS),
          ) 
-
-
 
 ```
 
@@ -188,19 +188,20 @@ d_enteric_comps2 <- d_enteric_comps %>%
   mutate(tr0 = ifelse(arm == "sun",1,0),
          tr1 = ifelse(arm == "moon",1,0),
          dummy = 1,
-         clusteridf = factor(clusterid)
+         clusteridf = factor(clusterid),
+         antigenf = droplevels(antigenf)
          )
 
 fitp_comp_age <- foreach(abi = levels(d_enteric_comps2$antigenf), .combine = rbind) %do% {
   cat("\n Estimating splines for",abi)
   di <- d_enteric_comps2 %>% filter(antigenf == abi)
-  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr",by=tr0) + 
-                         s(agem,bs="cr",by=tr1) + 
+  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr") + 
+                         arm +
                          s(clusteridf,bs="re",by=dummy), 
-                       family = "binomial",
+                       family = binomial(link = "cloglog"),
                        data=di)
-  newd0 <- di %>%  mutate(dummy=0,tr0=0,tr1=1)
-  newd1 <- di %>%  mutate(dummy=0,tr0=1,tr1=0)
+  newd0 <- di %>%  mutate(dummy=0, arm = "sun")
+  newd1 <- di %>%  mutate(dummy=0, arm = "moon")
   fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
   fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
   fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
@@ -209,20 +210,113 @@ fitp_comp_age <- foreach(abi = levels(d_enteric_comps2$antigenf), .combine = rbi
 
 # convert linear predictor to prevalance
 fitp_comp_age2 <- fitp_comp_age %>%
-  mutate(arm = ifelse(tr0==1,"sun","moon"),
-         arm = factor(arm,levels = c("sun","moon"))) %>%
-  mutate(fit = expitfn(fit),
-         uprP = expitfn(uprP),
-         lwrP = expitfn(lwrP),
-         uprS = expitfn(uprS),
-         lwrS = expitfn(lwrS),
+  mutate(arm = factor(arm,levels = c("sun","moon"))) %>%
+  mutate(fit = cloglogfn(fit),
+         uprP = cloglogfn(uprP),
+         lwrP = cloglogfn(lwrP),
+         uprS = cloglogfn(uprS),
+         lwrS = cloglogfn(lwrS),
          ) 
 
 
 
 ```
 
-## Enterics and bacteria figure
+# Estimate age-dependent force of infection
+
+Repeat the age-seroprevalence fits from above, but use the derivative of the linear predictor to estimate age-dependent force of infection:
+
+\begin{equation}
+\lambda(a) = \eta'(a)\exp(\eta(a))
+\end{equation}
+
+where $\eta'(a)$ is the first derivative of the linear predictor $\eta(a)$ from a binomial generalized additive model with a complementary log-log link.
+
+Estimate $\lambda(a)$ only over ages included in the primary analysis, which is 6-24 months for enterics (except _Salmonella_), and 12-59 months for malaria. 
+
+```{r age-specific FOI, warning=FALSE}
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages without any
+# variation in antibody levels
+# (esp. enterics, which become saturated)
+#
+# Enterics: 6 mo - 24
+# (except for salmonella, 6-59)
+#
+# Strep A: 6-59
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+d_foi <- d3 %>%
+  filter(agem >= 6) %>%
+  mutate(agedrop = case_when(
+    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  filter(agedrop == 0)
+
+set.seed(1234)
+fit_foi_age <- foreach(abi = levels(d_foi$antigenf), .combine = rbind) %do% {
+  cat("\n Estimating FOI for",abi)
+  di <- d_foi %>% filter(antigenf == abi)
+  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr") + arm +
+                         s(clusteridf,bs="re",by=dummy), 
+                       family = binomial(link="cloglog"),
+                       data=di)
+  
+  # estimate average seroconversion rate by arm
+  newd0 <- data.frame(antigenf = abi, agem=seq(min(di$agem),max(di$agem),by=0.01), dummy=0,clusteridf="C1",arm = "sun")
+  newd1 <- data.frame(antigenf = abi, agem=seq(min(di$agem),max(di$agem),by=0.01), dummy=0,clusteridf="C1",arm = "moon")
+  foi_tr0_ci <- foiCI(m=fit_age,newdata=newd0,fdvar="agem",nreps=1000)
+  foi_tr1_ci <- foiCI(m=fit_age,newdata=newd1,fdvar="agem",nreps=1000)
+  foi_ci <- bind_rows(foi_tr0_ci,foi_tr1_ci)
+  
+}
+```
+
+```{r age-specific FOI enterics composites, warning=FALSE}
+#-------------------------------
+# repeat FOI estimation based
+# on the composite seropositivity
+# indicators for some enterics
+# 
+# fit age-seroprev models on 
+# all ages, but only estimate
+# FOI in specific age regions
+# determined in the primary analysis
+#-------------------------------
+d_foi_comp <- d_enteric_comps2 %>%
+  filter(agem >= 6) %>%
+  mutate( estfoi = ifelse(agem >= 6,1,0),
+          estfoi = ifelse(antigenf != "Salmonella LPS B or D" & (agem > 24), 0,estfoi)
+          ) 
+
+set.seed(1234)
+fit_foi_comp_age <- foreach(abi = levels(d_foi_comp$antigenf), .combine = rbind) %do% {
+  cat("\n Estimating FOI for",abi)
+  di <- d_foi_comp %>% filter(antigenf == abi)
+  fit_age <- mgcv::gam(seropos ~ s(agem,bs="cr",by=estfoi) + arm +
+                         s(clusteridf,bs="re",by=dummy), 
+                       family = binomial(link="cloglog"),
+                       data=di)
+  
+  # estimate average seroconversion rate by arm
+  newd0 <- data.frame(antigenf = abi, agem=seq(min(di$agem[di$estfoi==1]),max(di$agem[di$estfoi==1]),by=0.01), dummy=0,estfoi=1,clusteridf="C1",arm = "sun")
+  newd1 <- data.frame(antigenf = abi, agem=seq(min(di$agem[di$estfoi==1]),max(di$agem[di$estfoi==1]),by=0.01), dummy=0,estfoi=1,clusteridf="C1",arm = "moon")
+  foi_tr0_ci <- foiCI(m=fit_age,newdata=newd0,fdvar="agem",nreps=1000)
+  foi_tr1_ci <- foiCI(m=fit_age,newdata=newd1,fdvar="agem",nreps=1000)
+  foi_ci <- bind_rows(foi_tr0_ci,foi_tr1_ci)
+  
+}
+
+
+```
+
+
+# Enterics and bacteria figure
 
 Age-dependent MFI figure
 ```{r age-dependent means by arm figure enterics, fig.width = 6, fig.height = 12}
@@ -237,14 +331,25 @@ fit_age_enterics <- fit_age2 %>%
   mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
          )
 
+#-----------------------------
 # labels for the panels in the plot 
+#
+# create a bounding box
+# to shade ages used in
+# the primary analysis
+# and in age-dependent FOI
+# estimation
+#-----------------------------
 pplabs <- fit_age_enterics %>%
   group_by(antigenf) %>%
   select(pathogen,antigen, antigenf, arm) %>%
   slice(1) %>%
   mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
+         ) %>%
+  mutate(minX = 6, 
+         maxX = ifelse(antigenf %in% c("Salmonella LPS B", "Salmonella LPS D","Streptococcus A"),60,24),
+         arm = "sun"
          )
-
 
 # custom log labels
 log10labs <- c( 
@@ -254,11 +359,13 @@ log10labs <- c(
   expression(10^3),
   expression(10^4)
 )
-pcols <- cbpal[c(1,2)]
+pcols <- c(vircols[3],cbpal[2])
 # pcols <- vircols[c(3,6)]
 plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen and antigen
   facet_grid(pathogen~antigenn, drop = TRUE) +
+   # add shade box
+  geom_rect(data=pplabs, inherit.aes = FALSE, aes(xmin = minX, xmax = maxX, ymin = 0, ymax = 4.5), alpha=0.1) +
   # 95% CI bands for spline fit
   geom_ribbon(aes(ymin = lwrS, ymax = uprS), color = NA, alpha = 0.4) +
   # spline fit
@@ -270,7 +377,7 @@ plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, 
   scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
-  coord_cartesian(ylim = c(0,4.6)) +
+  coord_cartesian(ylim = c(0,4.65)) +
   labs(x = "age, months", y = "Luminex response (MFI-bg)", tag = "A") +
   theme_minimal() +
   theme(
@@ -284,7 +391,8 @@ plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, 
 
 Seroprevalence figure. Use composite estimates for pathogens with multiple antigens
 
-```{r age-dependent seroprevalence by arm figure, fig.width = 12, fig.height = 12}
+```{r age-dependent seroprevalence by arm figure, warning = FALSE, fig.width = 12, fig.height = 12}
+
 #-----------------------------
 # plot age-dependent seroprev
 # by arm for enterics
@@ -292,8 +400,20 @@ Seroprevalence figure. Use composite estimates for pathogens with multiple antig
 fitp_enterics <- fitp_age2 %>%
   filter(pathogen %in% c("ETEC","Cholera","Streptococcus")) %>%
   bind_rows(fitp_comp_age2) %>%
-  mutate(antigenf = factor(antigenf,levels = c(levels(fitp_comp_age2$antigenf),"ETEC LTB","Cholera CTB","Streptococcus A")))
+  mutate(antigenf = factor(antigenf,levels = c(levels(fitp_comp_age2$antigenf)[1],"ETEC LTB","Cholera CTB",levels(fitp_comp_age2$antigenf)[2:4],"Streptococcus A")))
 
+#-----------------------------
+# create a bounding box
+# to shade ages used in
+# the primary analysis
+# and in age-dependent FOI
+# estimation
+#-----------------------------
+d_shade_box <- data.frame(antigenf = levels(fitp_enterics$antigenf)) %>%
+  mutate(minX = 6, 
+         maxX = ifelse(antigenf %in% c("Salmonella LPS B or D","Streptococcus A"),60,24),
+         arm = "sun"
+         )
 
 # labels for the panels in the plot 
 pplabs2 <- fitp_enterics %>%
@@ -301,17 +421,17 @@ pplabs2 <- fitp_enterics %>%
   select(pathogen, antigenf, arm) %>%
   slice(1)
 
-
-pcols <- cbpal[c(1,2)]
-# pcols <- vircols[c(3,6)]
+pcols <- c(vircols[3],cbpal[2])
 plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
   facet_grid(antigenf~.) +
+  # add shade box
+  geom_rect(data=d_shade_box, inherit.aes = FALSE, aes(xmin = minX, xmax = maxX, ymin = 0, ymax = 1), alpha=0.1) +
   # approximate pointwise 95% CIs
   geom_ribbon(aes(ymin = lwrS, ymax = uprS), color = NA, alpha = 0.3) +
   # spline fits
   geom_line() +
-   # labels
+  # labels
   geom_text(data=pplabs2, aes(x=0, y=1.03, label=antigenf, hjust=0, vjust=0), color="gray20", size=2.5)+
   # plot aesthetics
   scale_y_continuous(breaks = seq(0,1,by=0.2), labels = sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
@@ -328,16 +448,223 @@ plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fi
   )
 
 
+```
+
+Composite of MFI and seroprevalence
+
+```{r enterics age plot composite, warning=FALSE, fig.width = 12, fig.height = 18}
+pcurve_composite_enterics <- grid.arrange(plot_age_mfi_enterics,
+                                          plot_age_seroprev_enterics,
+                                          ncol=2,nrow=1,widths=c(2,1.1))
+
+ggsave(here("figures","mordor-ab-age-curves-enterics.png"),pcurve_composite_enterics, device = "png", width = 8, height = 12)
+
+```
+
+
+Seroconversion rate figure. Use composite estimates for pathogens with multiple antigens.
+
+```{r age-dependent FOI by arm figure, warning = FALSE, fig.width = 5, fig.height = 15}
+
+#-----------------------------
+# plot age-dependent FOI
+# by arm for enterics
+# multiply seroconversion rate
+# per month of age by 12
+# to convert units to per year
+#-----------------------------
+foip_enterics <- fit_foi_age %>%
+  filter(antigenf %in% c("ETEC LTB","Cholera CTB","Streptococcus A")) %>%
+  bind_rows(fit_foi_comp_age) %>%
+  mutate(antigenf = factor(antigenf,levels = c(levels(d_foi_comp$antigenf)[1],"ETEC LTB","Cholera CTB",levels(d_foi_comp$antigenf)[2:4],"Streptococcus A")))
+
+pcols <- c(vircols[3],cbpal[2])
+plot_age_foi_enterics <- ggplot(data = foip_enterics , aes(x = agem, y = 12*foi, group = arm, color = arm, fill = arm)) +
+  # facet by pathogen
+  facet_grid(antigenf~., scales = "free_y") +
+  # approximate pointwise 95% CIs
+  geom_ribbon(aes(ymin = 12*foi_lwrS, ymax = 12*foi_uprS), color = NA, alpha = 0.3) +
+  # spline fits
+  geom_line() +
+  # labels
+  # geom_text(data=pplabs2, aes(x=0, y=8.2, label=antigenf, hjust=0, vjust=0), color="gray20", size=2.5)+
+  # plot aesthetics
+  # scale_y_continuous(breaks = seq(0,8,by=2)) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  # coord_cartesian(ylim = c(0,8.4)) +
+  labs(x = "age, months", y = expression(paste("seroconversion rate per year (force of infection), ",lambda,"(a)"))) +
+  theme_minimal() +
+  theme(
+    strip.text.x = element_blank(),
+    # strip.text.y = element_blank(),
+    legend.position = "top"
+  )
+
+plot_age_foi_enterics
+```
+
+
+# Malaria figure
+
+Age-dependent MFI figure
+```{r age-dependent means by arm figure malaria, fig.width = 6, fig.height = 12}
+#-----------------------------
+# plot age-dependent means
+# by arm
+#-----------------------------
+fit_age_malaria <- fit_age2 %>%
+  filter(!antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","salb","sald","etec","ctb","speb")) %>%
+  mutate(antigenf = droplevels(antigenf))
+
+#-----------------------------
+# create a bounding box
+# to shade ages used in
+# the primary analysis
+# and in age-dependent FOI
+# estimation
+#-----------------------------
+d_shade_box <- data.frame(antigenf = levels(fit_age_malaria$antigenf)) %>%
+  mutate(minX = 12, 
+         maxX = 60,
+         arm = "sun"
+         )
+
+# custom log labels
+log10labs <- c( 
+  expression(10^0),
+  expression(10^1),
+  expression(10^2),
+  expression(10^3),
+  expression(10^4)
+)
+pcols <- c(vircols[3],cbpal[2])
+
+plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
+  # facet by pathogen and antigen
+  facet_grid(antigenf~., drop = TRUE) +
+  # add shade box
+  geom_rect(data=d_shade_box, inherit.aes = FALSE, aes(xmin = minX, xmax = maxX, ymin = 0, ymax = 4.5), alpha=0.1) +
+  # 95% CI bands for spline fit
+  geom_ribbon(aes(ymin = lwrS, ymax = uprS), color = NA, alpha = 0.4) +
+  # spline fit
+  geom_line() +
+  # plot aesthetics
+  scale_y_continuous(breaks = 0:4, labels = log10labs) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  coord_cartesian(ylim = c(0,4.65)) +
+  labs(x = "age, months", y = "Luminex response (MFI-bg)", tag = "A") +
+  theme_minimal() +
+  theme(
+    strip.text.x = element_blank(),
+    strip.text.y = element_text(angle = 0),
+    legend.position = "top"
+  )
+
+```
+
+Seroprevalence figure. 
+
+```{r age-dependent seroprevalence by arm figure malaria, warning = FALSE, fig.width = 12, fig.height = 12}
+
+#-----------------------------
+# plot age-dependent seroprev
+# by arm for malaria
+#-----------------------------
+fitp_malaria<- fitp_age2 %>%
+  filter(!antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","salb","sald","etec","ctb","speb")) %>%
+  mutate(antigenf = droplevels(antigenf))
+
+#-----------------------------
+# create a bounding box
+# to shade ages used in
+# the primary analysis
+# and in age-dependent FOI
+# estimation
+#-----------------------------
+d_shade_box <- data.frame(antigenf = levels(fitp_malaria$antigenf)) %>%
+  mutate(minX = 12, 
+         maxX = 60,
+         arm = "sun"
+         )
+
+pcols <- c(vircols[3],cbpal[2])
+
+plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
+  # facet by pathogen
+  facet_grid(antigenf~.) +
+  # add shade box
+  geom_rect(data=d_shade_box, inherit.aes = FALSE, aes(xmin = minX, xmax = maxX, ymin = 0, ymax = 1), alpha=0.1) +
+  # approximate pointwise 95% CIs
+  geom_ribbon(aes(ymin = lwrS, ymax = uprS), color = NA, alpha = 0.3) +
+  # spline fits
+  geom_line() +
+  # plot aesthetics
+  scale_y_continuous(breaks = seq(0,1,by=0.2), labels = sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  coord_cartesian(ylim = c(0,1.04)) +
+  labs(x = "age, months", y = "seroprevalence (%)", tag = "B") +
+  theme_minimal() +
+  theme(
+    strip.text.x = element_blank(),
+    strip.text.y = element_blank(),
+    legend.position = "top"
+  )
 
 
 ```
 
-```{r enterics age plot composite, warning=FALSE, fig.width = 8, fig.height = 12}
-pcurve_composite_enterics <- grid.arrange(plot_age_mfi_enterics,plot_age_seroprev_enterics,ncol=2,nrow=1,widths=c(2,1.1))
+Composite of MFI and seroprevalence
+```{r malaria age plot composite, warning=FALSE, fig.width = 9, fig.height = 18}
+pcurve_composite_malaria <- grid.arrange(plot_age_mfi_malaria,
+                                          plot_age_seroprev_malaria,
+                                          ncol=2,nrow=1,widths=c(1.5,1))
 
-ggsave(here("figures","mordor-ab-age-curves-enterics.png"),pcurve_composite_enterics, device = "png", width = 8, height = 12)
+ggsave(here("figures","mordor-ab-age-curves-malaria.png"),pcurve_composite_malaria, device = "png", width = 8, height = 19)
+```
 
+Seroconversion rate figure.
 
+```{r age-dependent FOI by arm figure malaria, warning = FALSE, fig.width = 5, fig.height = 15}
+
+#-----------------------------
+# plot age-dependent FOI
+# by arm for enterics
+# multiply seroconversion rate
+# per month of age by 12
+# to convert units to per year
+#-----------------------------
+foip_malaria <- fit_foi_age %>%
+  filter(antigenf %in% levels(fit_foi_age$antigenf)[12:20]) %>%
+  mutate(antigenf = droplevels(antigenf))
+
+pcols <- c(vircols[3],cbpal[2])
+plot_age_foi_malaria <- ggplot(data = foip_malaria , aes(x = agem, y = 12*foi, group = arm, color = arm, fill = arm)) +
+  # facet by pathogen
+  facet_grid(antigenf~., scales = "free_y") +
+  # approximate pointwise 95% CIs
+  geom_ribbon(aes(ymin = 12*foi_lwrS, ymax = 12*foi_uprS), color = NA, alpha = 0.3) +
+  # spline fits
+  geom_line() +
+  # plot aesthetics
+  scale_y_continuous(breaks = seq(0,1,by=0.5)) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  coord_cartesian(ylim = c(0,2)) +
+  labs(x = "age, months", y = expression(paste("seroconversion rate per year (force of infection), ",lambda,"(a)"))) +
+  theme_minimal() +
+  theme(
+    strip.text.x = element_blank(),
+    legend.position = "top"
+  )
+
+plot_age_foi_malaria
 ```
 
 # Session Info
