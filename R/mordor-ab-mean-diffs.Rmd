@@ -184,7 +184,7 @@ mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
                   d_mfi_boot, by = "clusterid")
   di %>%
   group_by(antigenf,arm) %>%
-  summarize(mean_mfi = mean(logmfi)) %>%
+  summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
   pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_mfi) %>%
   rename(control = sun,
          azithro = moon) %>%
@@ -231,7 +231,7 @@ mu_mfi2 <- mu_mfi %>%
 #-----------------------------
 clmeans_mfi <- d2 %>% 
     group_by(clusterid,arm,pathogen,antigenf) %>%
-    summarize(mean_mfi = mean(logmfi))
+    summarize(mean_mfi = mean(logmfi), .groups = "keep")
 
 set.seed(87592)
 permute_mfi <- foreach(abi = levels(d2$antigenf), .combine = rbind) %do% {
@@ -368,7 +368,7 @@ ggsave(here("figures","mordor-ab-diff-mfi.png"),plot_mfi_comp,device = "png",wid
 n_serop <- d_serop %>%
   group_by(pathogen,antigenf,arm) %>%
   mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
-  summarize(nobs = sum(nomiss)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = nobs) %>%
   rename(control_n = sun,
          azithro_n = moon)
@@ -411,7 +411,7 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
                   d_serop_boot, by = "clusterid")
   di %>%
   group_by(antigenf,arm) %>%
-  summarize(mean_serop = mean(seropos)) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
   pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_serop) %>%
   rename(control = sun,
          azithro = moon) %>%
@@ -460,7 +460,7 @@ mu_serop2 <- mu_serop %>%
 #-----------------------------
 clmeans_serop <- d_serop %>% 
     group_by(clusterid,arm,pathogen,antigenf) %>%
-    summarize(mean_serop = mean(seropos))
+    summarize(mean_serop = mean(seropos), .groups = "keep")
 
 set.seed(34527)
 permute_serop <- foreach(abi = levels(d_serop$antigenf), .combine = rbind) %do% {
@@ -633,56 +633,43 @@ d_foi <- d_serop %>%
     "P. malariae MSP-1"
   )
          ) %>%
-  mutate(antigenf = droplevels(antigenf))
+  mutate(antigenf = droplevels(antigenf),
+         clusteridf = factor(clusterid),
+         dummy = 1)
 
 set.seed(123)
 foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
   
     pd <- filter(d_foi, antigenf==ab)
-    gfit <- gam(seropos ~ s(agem, bs="cr") + arm , 
+    gfit <- gam(seropos ~ s(agem, bs="cr") + arm +
+                s(clusteridf, bs = "re",by=dummy), 
                 data=pd,
                 family=binomial(link="cloglog"))
     gsum <- summary(gfit)
     # estimate average seroconversion rate by arm
-    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "sun")
-    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "moon")
-    lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(pd$agem),a2=max(pd$agem),nreps=2)$mufoi
-    lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(pd$agem),a2=max(pd$agem),nreps=2)$mufoi
-    # estimate HR from the model 
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "sun", dummy=0, clusteridf = "C1")
+    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "moon", dummy=0, clusteridf = "C1")
+    lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
     hr <- as.numeric(exp(gfit$coefficients[2]))
-    # estimate bootstrapped 95% CI
-    clids <- unique(pd$clusterid)
-    breps <- 1000
-    bsamp <- matrix(sample(clids,size=breps*length(clids),replace=TRUE),nrow=length(clids),ncol=breps)
-    boot_lambda0s <- rep(NA,breps)
-    boot_lambda1s <- rep(NA,breps)
-    boot_hrs <- rep(NA,breps)
-    for(i in 1:breps) {
-      di <- data.frame(clusterid = bsamp[,i],stringsAsFactors = FALSE) %>% left_join(pd,by="clusterid")
-      bfit <- gam(seropos ~ s(agem, bs="cr") + arm ,
-                  data=di,
-                  family=binomial(link="cloglog")
-                  )
-      newd0i <- data.frame(agem=c(min(di$agem),max(di$agem)), arm = "sun")
-      newd1i <- data.frame(agem=c(min(di$agem),max(di$agem)), arm = "moon")
-      boot_lambda0s[i] <- avgFOI(bfit, newdata=newd0i, a1=min(di$agem),a2=max(di$agem),nreps=2)$mufoi
-      boot_lambda1s[i] <- avgFOI(bfit, newdata=newd1i, a1=min(di$agem),a2=max(di$agem),nreps=2)$mufoi
-      boot_hrs[i] <- as.numeric(exp(bfit$coefficients[2]))
-    }
-    
-    # return results
-    res <- data.frame(antigenf=ab, 
-                      lambda0=lambda0,
-                      lambda0_min95 = quantile(boot_lambda0s,probs=0.025),
-                      lambda0_max95 = quantile(boot_lambda0s,probs=0.975),
-                      lambda1=lambda1,
-                      lambda1_min95 = quantile(boot_lambda1s,probs=0.025),
-                      lambda1_max95 = quantile(boot_lambda1s,probs=0.975),
-                      hr = hr,
-                      hr_min95 = quantile(boot_hrs,probs=0.025),
-                      hr_max95 = quantile(boot_hrs,probs=0.975)
+    loghr_se <-as.numeric(gsum$se[2])
+    # return the results
+    res <- data.frame(antigenf = ab,
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se)
                       )
-    res
 }
 
 foi_ests_tab <- foi_ests %>%
@@ -718,7 +705,7 @@ knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
 d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
                        antigenf=rep("Campylobacter p18 or p39",2),
                        arm = c("azithromycin","placebo"),
-                       mean = rep(4,2))
+                       mean = rep(2.75,2))
 
 # format the output for plotting
 mu_scr_control <- foi_ests %>%
@@ -749,11 +736,11 @@ plot_scr_means <- ggplot(data = mu_scr_plot, aes(x = antigenf, color = arm)) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = seq(0,4,by=1)) +
   # add annotation and labels
-  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.2,-0.2) ), size = 3, hjust = 1 ) +
+  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.2,-0.2) ), size = 3, hjust = 0 ) +
   labs(x = "antigen", y = "force of infection\n(seroconversion rate per child-year)", tag = "A") +
   
   # figure layout
-  coord_flip(ylim=c(0,4)) +
+  coord_flip(ylim=c(0,4.5)) +
   # theme_minimal() +
   theme(
     legend.position = "none",
