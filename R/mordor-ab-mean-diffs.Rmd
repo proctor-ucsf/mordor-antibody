@@ -693,7 +693,9 @@ knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
 
 ```
 
-```{r foi ests figure}
+Create separate figures for enterics and malaria, since the enteric pathogens have so much higher FOI — hard to keep on the same scale
+
+```{r foi ests figure enterics}
 #------------------------------
 # plot SCR by arm
 # estimates are multiplied by
@@ -723,10 +725,9 @@ mu_scr_plot <- bind_rows(mu_scr_control,mu_scr_azithro) %>%
 mu_scr_plot$group = "enterics\nand\nstrep"
 mu_scr_plot$group[substr(as.character(mu_scr_plot$antigenf),1,3)=="P. "] <- "malaria"
   
-# make figure
+# make figure (enterics)
 pcols <- c(vircols[3],cbpal[2])
-plot_scr_means <- ggplot(data = mu_scr_plot, aes(x = antigenf, color = arm)) +
-  facet_grid(group~., scales = "free_y") +
+plot_scr_means_enterics <- ggplot(data = mu_scr_plot %>% filter(group != "malaria"), aes(x = antigenf, color = arm)) +
   # plot points
   geom_errorbar(aes(ymin = 12*mean_lb, ymax = 12*mean_ub),width = 0.4, alpha=0.8,
                 position = position_nudge(x = rep(c(-0.2,0.2),20))) +
@@ -749,7 +750,7 @@ plot_scr_means <- ggplot(data = mu_scr_plot, aes(x = antigenf, color = arm)) +
 
 ```
 
-```{r scr hazard ratio figure}
+```{r scr hazard ratio figure enterics}
 #------------------------------
 # plot the hazard ratio between
 # arms (companion to the means)
@@ -762,9 +763,83 @@ mu_scr_plot2 <- foi_ests %>%
 mu_scr_plot2$group = "enterics\nand\nstrep"
 mu_scr_plot2$group[substr(as.character(mu_scr_plot2$antigenf),1,3)=="P. "] <- "malaria"
 
-# make the figure
-plot_scr_hr <- ggplot(data = mu_scr_plot2, aes(x = antigenf, y = hr)) +
-  facet_grid(group~., scales = "free_y") +
+# make the figure (enterics)
+plot_scr_hr_enterics <- ggplot(data = mu_scr_plot2 %>% filter(group != "malaria"), aes(x = antigenf, y = hr)) +
+  geom_hline(yintercept = 1, color = "gray60") +
+  geom_errorbar(aes(ymin = hr_min95, ymax = hr_max95),width = 0.4,alpha=0.6) +
+  geom_point(alpha=0.6) +
+  scale_color_manual(values = pcols) +
+  scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
+  labs(x = NULL, y = "hazard ratio \nazithromycin / placebo", tag = "B") +
+  coord_flip(ylim=c(0.5,2)) +
+  # theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text.y = element_text(angle = 0),
+    panel.grid.minor = element_blank()
+  )
+
+
+  
+```
+
+
+```{r scr composite figure enterics, fig.width = 10, fig.height = 3}
+plot_scr_comp <- grid.arrange(plot_scr_means_enterics,plot_scr_hr_enterics,ncol=2,nrow=1, widths = c(4,4))
+
+ggsave(here("figures","mordor-ab-scr-hr-enterics.png"),plot_scr_comp,device = "png",width = 9, height = 3)
+```
+
+
+Malaria FOI figure
+
+```{r foi ests figure malaria}
+#------------------------------
+# plot SCR by arm
+# estimates are multiplied by
+# 12 to convert from per-month
+# to per-year
+#------------------------------
+
+# make some labels
+d_labels <- data.frame(group = rep("malaria",2),
+                       antigenf=rep("P. falciparum MSP-1",2),
+                       arm = c("azithromycin","placebo"),
+                       mean = rep(0,2))
+
+# make figure (malaria)
+pcols <- c(vircols[3],cbpal[2])
+plot_scr_means_malaria <- ggplot(data = mu_scr_plot %>% filter(group == "malaria"), aes(x = antigenf, color = arm)) +
+  # plot points
+  geom_errorbar(aes(ymin = 12*mean_lb, ymax = 12*mean_ub),width = 0.4, alpha=0.8,
+                position = position_nudge(x = rep(c(-0.2,0.2),20))) +
+  geom_point(aes(y = 12*mean), alpha=0.8,
+             position = position_nudge(x = rep(c(-0.2,0.2),20)) ) +
+  
+  scale_color_manual(values = pcols) +
+  scale_y_continuous(breaks = seq(0,0.8,by=0.2)) +
+  # add annotation and labels
+  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.2,-0.2) ), size = 3, hjust = 0 ) +
+  labs(x = "antigen", y = "force of infection\n(seroconversion rate per child-year)", tag = "A") +
+  
+  # figure layout
+  coord_flip(ylim=c(0,0.8)) +
+  # theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text.y = element_text(angle = 0)
+  )
+
+```
+
+```{r scr hazard ratio figure malaria}
+#------------------------------
+# plot the hazard ratio between
+# arms (companion to the means)
+#------------------------------
+
+# make the figure (malaria)
+plot_scr_hr_malaria <- ggplot(data = mu_scr_plot2 %>% filter(group == "malaria"), aes(x = antigenf, y = hr)) +
   geom_hline(yintercept = 1, color = "gray60") +
   geom_errorbar(aes(ymin = hr_min95, ymax = hr_max95),width = 0.4,alpha=0.6) +
   geom_point(alpha=0.6) +
@@ -784,10 +859,10 @@ plot_scr_hr <- ggplot(data = mu_scr_plot2, aes(x = antigenf, y = hr)) +
 ```
 
 
-```{r scr composite figure, fig.width = 10, fig.height = 6}
-plot_scr_comp <- grid.arrange(plot_scr_means,plot_scr_hr,ncol=2,nrow=1, widths = c(4,4))
+```{r scr composite figure malaria, fig.width = 10, fig.height = 3}
+plot_scr_comp_malaria <- grid.arrange(plot_scr_means_malaria,plot_scr_hr_malaria,ncol=2,nrow=1, widths = c(4,4))
 
-ggsave(here("figures","mordor-ab-scr-hr.png"),plot_scr_comp,device = "png",width = 10, height = 5)
+ggsave(here("figures","mordor-ab-scr-hr-malaria.png"),plot_scr_comp_malaria,device = "png",width = 9, height = 3)
 ```
 
 # Session Info
