@@ -18,6 +18,7 @@ library(kableExtra)
 library(tidyverse)
 library(gridExtra)
 library(viridisLite)
+library(RColorBrewer)
 
 #----------------------------
 # stats packages
