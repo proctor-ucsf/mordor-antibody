@@ -1,0 +1,557 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Subgroup analyses"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Compare mean antibody levels and seroprevalence by pre-specified subgroups: trial phase (6, 12, 24, 36), child age (age 6 months or younger at the start of the trial vs older), and season (wet vs dry).  The rationale for these subgroups is specified in the pre-analysis plan: https://osf.io/d9s4t/
+
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+#-------------------------------
+# drop the trachoma, strongyloides, 
+# and GST negative control values
+#-------------------------------
+d2 <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf),
+         phasef = factor(phase))
+
+#-------------------------------
+# drop baseline measurements
+#-------------------------------
+d2 <- d2 %>%
+  filter(phase > 0) %>%
+  mutate(phasef = droplevels(phasef))
+
+
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages without any
+# variation in antibody levels
+# (esp. enterics, which become saturated)
+#
+# Enterics: 6 mo - 24
+# (except for salmonella, strep A)
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+d2 <- d2 %>%
+  filter(agem >= 6) %>%
+  mutate(agedrop = case_when(
+    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+    TRUE ~ 0
+  )
+         ) %>%
+  filter(agedrop == 0)
+
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+Then bind those to the original data frame to create a seropositivity dataset for analyses.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- d2 %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phasef) %>%
+  mutate(seropos = max(seropos)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  )) %>%
+  select(clusterid,phasef,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
+
+
+```
+
+```{r create seropositivity dataset, warning=FALSE}
+d_serop <- d2 %>%
+  # drop pathogens w/ composite indicators
+  filter(!pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  # add composite indicators
+  bind_rows(d_enteric_comps) %>%
+  # create new factor levels that includes composite indicators
+  mutate(antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Cholera CTB",
+    "Salmonella LPS B or D",
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+   levels(d2$antigenf)[11:20]) )
+         ) %>%
+  # drop extra variables (MFI doesn't correspond to composite seropos so drop)
+  dplyr::select(-mfi,-logmfi,-agedrop)
+
+```
+
+# Effect modification by phase
+
+Assess effect modification by trial phase on MFI and seroprevalence.
+
+
+## MFI by phase and arm
+
+```{r means by arm and phase}
+#-----------------------------
+# tally number of observations
+# by antigen
+#-----------------------------
+n_mfi <- d2 %>%
+  group_by(pathogen,antigenf,arm,phasef) %>%
+  mutate(nomiss = ifelse(!is.na(logmfi),1,0)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf,phasef), names_from = "arm", values_from = nobs) %>%
+  rename(control_n = sun,
+         azithro_n = moon)
+
+
+#-----------------------------
+# estimate means by arm, phase
+# and difference in means
+#-----------------------------
+mu_mfi <- d2 %>%
+  group_by(pathogen,antigenf,arm,phasef) %>%
+  summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf,phasef), names_from = "arm", values_from = mean_mfi) %>%
+  rename(control = sun,
+         azithro = moon) %>%
+  mutate(diff = azithro - control)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_mfi <- left_join(n_mfi, mu_mfi, by=c("pathogen","antigenf","phasef"))
+```
+
+```{r bootstrap mean MFI diff by phase}
+#-----------------------------
+# bootstrap resample communities
+# with replacement to estimate
+# 95% CIs for difference in means
+#-----------------------------
+set.seed(123)
+nreps <- 1000
+ncl <- length(unique(d2$clusterid))
+bsamp <- matrix(sample(unique(d2$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
+d_mfi_boot <- d2 %>% select(clusterid,antigenf,phasef,arm,logmfi)
+mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
+  
+  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+
+  di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
+                  d_mfi_boot, by = "clusterid")
+  di %>%
+  group_by(antigenf,phasef,arm) %>%
+  summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
+  pivot_wider(id_cols = c("antigenf","phasef"), names_from = "arm", values_from = mean_mfi) %>%
+  rename(control = sun,
+         azithro = moon) %>%
+  mutate(diff = azithro - control, 
+         bootrep = bi)
+  
+}
+```
+
+```{r mean mfi bootstrap cis by phase}
+#-----------------------------
+# calculate percentile 95%
+# CIs from the bootstrap
+# distribution merge to estimates
+#-----------------------------
+mu_mfi_ci <- mu_mfi_boot %>%
+  group_by(antigenf,phasef) %>%
+  mutate(mean_c_lb = quantile(control, probs = 0.025),
+         mean_c_ub = quantile(control, probs = 0.975),
+         mean_a_lb = quantile(azithro, probs = 0.025),
+         mean_a_ub = quantile(azithro, probs = 0.975),
+         diff_bmean = mean(diff),
+         diff_bse = sd(diff),
+         diff_lb = quantile(diff, probs = 0.025),
+         diff_ub = quantile(diff, probs = 0.975)) %>%
+  select(antigenf,phasef,starts_with("mean_"), starts_with("diff_")) %>%
+  slice(1)
+  
+mu_mfi2 <- mu_mfi %>%
+  left_join(mu_mfi_ci, by = c("antigenf","phasef"))
+  
+```
+
+### Estimate interaction p-values
+
+Estimate interaction p-values on the additive scale using an ANOVA on cluster level means.
+
+```{r mfi p-values for interaction phase}
+
+#-----------------------------
+# test for interaction on
+# the additive scale using
+# ANOVA F-test on cluster level means
+# See Hayes and Moulten 2017, 
+# section 10.8 (p241)
+#-----------------------------
+clmeans_mfi <- d2 %>% 
+    group_by(antigenf,arm,phasef,clusterid) %>%
+    summarize(mean_mfi = mean(logmfi), .groups = "keep")
+
+mfi_phase_Ftest <- foreach(abi = levels(d2$antigenf), .combine = rbind) %do% {
+    # restrict to a particular antigen
+    # summarize cluster level means by phase and arm
+    di <- clmeans_mfi %>% filter(antigenf == abi) 
+  
+    # ANOVA F-test on cluster level means
+    # See Hayes and Moulten 2017, section 10.8 (p241)
+    fiti <- lm(mean_mfi ~ arm*phasef, data=di)
+    intFP <- as.numeric(anova(fiti)[3,4:5])
+    res <- data.frame(antigenf=abi,phasef="36",intF=intFP[1],intP=intFP[2])
+    
+  }
+
+```
+
+### Table of results
+```{r MFI means by phase table}
+options(knitr.kable.NA = '') 
+mu_mfi_table <- mu_mfi2 %>%
+  ungroup() %>%
+  left_join(mfi_phase_Ftest,by=c("antigenf","phasef")) %>%
+  mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
+  select(antigenf, phasef, control, azithro, diff_ci,intP)
+
+knitr::kable(mu_mfi_table,
+             col.names = c("Pathogen, antigen", "Phase","Placebo","Azithro.","Difference (95% CI)","P-value*"), 
+             digits = 3,
+             align = "lcccr") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
+  add_header_above(c(" " = 2, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 44) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 45, end_row = 80) %>%
+  footnote(
+    symbol=c("P-value for additive interaction by study phase.")
+  )
+
+```
+
+### Figure of results
+
+```{r MFI diff phase figure enterics}
+#------------------------------
+# plot the difference between
+# arms by phase
+#------------------------------
+
+# format the output for plotting
+mu_mfi_plot2 <- mu_mfi2 %>%
+  ungroup() #%>%
+  # mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
+mu_mfi_plot2$group = "enterics\nand\nstrep"
+mu_mfi_plot2$group[grep("P. ",mu_mfi_plot2$pathogen)] <- "malaria"
+
+# make the figure
+pcols <- brewer.pal(9,"PuBuGn")[5:8]
+plot_mfi_diff_phase_enterics <- ggplot(data = mu_mfi_plot2 %>% filter(group!="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
+  facet_wrap(antigenf~., ncol=4, nrow = 3) +
+  geom_hline(yintercept = 0, color = "gray60") +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
+  geom_point(alpha=0.6) +
+  scale_y_continuous(breaks = seq(-0.6,0.6,by=0.3), labels = sprintf("%1.1f",seq(-0.6,0.6,by=0.3))) +
+  scale_color_manual(values = pcols) +
+  labs(x = "study phase (months)", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "A") +
+  coord_cartesian(ylim = c(-0.6,0.6)) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+```{r MFI diff phase figure malaria}
+#------------------------------
+# plot the difference between
+# arms by phase
+#------------------------------
+pcols <- brewer.pal(9,"PuBuGn")[5:8]
+plot_mfi_diff_phase_malaria <- ggplot(data = mu_mfi_plot2 %>% filter(group=="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
+  facet_wrap(antigenf~., ncol=3, nrow = 3) +
+  geom_hline(yintercept = 0, color = "gray60") +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
+  geom_point(alpha=0.6) +
+  scale_y_continuous(breaks = seq(-0.6,0.6,by=0.3), labels = sprintf("%1.1f",seq(-0.6,0.6,by=0.3))) +
+  scale_color_manual(values = pcols) +
+  labs(x = "study phase (months)", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "B") +
+  coord_cartesian(ylim = c(-0.6,0.6)) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+```{r mfi diff phase composite figure, fig.width = 10, fig.height = 6}
+plot_mfi_phase_comp <- grid.arrange(plot_mfi_diff_phase_enterics,plot_mfi_diff_phase_malaria,ncol=2,nrow=1, widths = c(1,0.75))
+
+ggsave(here("figures","mordor-ab-diff-mfi-by-phase.png"),plot_mfi_phase_comp,device = "png",width = 12, height = 4)
+```
+
+## Seroprevalence by phase and arm
+
+```{r seroprev by arm phase}
+
+#-----------------------------
+# tally number of observations
+# by antigen (including composites)
+#-----------------------------
+n_serop <- d_serop %>%
+  group_by(pathogen,antigenf,arm, phasef) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf, phasef), names_from = "arm", values_from = nobs) %>%
+  rename(control_n = sun,
+         azithro_n = moon)
+
+#-----------------------------
+# estimate seroprevalence by arm
+# and difference in seroprevalence
+#-----------------------------
+mu_serop <- d_serop %>%
+  group_by(pathogen,antigenf,arm, phasef) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf, phasef), names_from = "arm", values_from = mean_serop) %>%
+  rename(control = sun,
+         azithro = moon) %>%
+  mutate(diff = azithro - control)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_serop <- left_join(n_serop, mu_serop, by=c("pathogen","antigenf", "phasef"))
+```
+
+
+```{r bootstrap mean seropos diff}
+#-----------------------------
+# bootstrap resample communities
+# with replacement to estimate
+# 95% CIs for difference in seroprev
+#-----------------------------
+set.seed(123)
+nreps <- 1000
+ncl <- length(unique(d_serop$clusterid))
+bsamp <- matrix(sample(unique(d_serop$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
+d_serop_boot <- d_serop %>% select(clusterid,antigenf,arm,phasef,seropos)
+mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
+  
+  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+  
+  di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
+                  d_serop_boot, by = "clusterid")
+  di %>%
+  group_by(antigenf,arm,phasef) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = c("antigenf","phasef"), names_from = "arm", values_from = mean_serop) %>%
+  rename(control = sun,
+         azithro = moon) %>%
+  mutate(diff = azithro - control, 
+         bootrep = bi)
+
+}
+```
+
+
+```{r mean seroprev bootstrap cis}
+#-----------------------------
+# calculate percentile 95%
+# CIs from the bootstrap
+# distribution merge to estimates
+#-----------------------------
+mu_serop_ci <- mu_serop_boot %>%
+  group_by(antigenf,phasef) %>%
+  mutate(mean_c_lb = quantile(control, probs = 0.025),
+         mean_c_ub = quantile(control, probs = 0.975),
+         mean_a_lb = quantile(azithro, probs = 0.025),
+         mean_a_ub = quantile(azithro, probs = 0.975),
+         diff_bmean = mean(diff),
+         diff_bse = sd(diff),
+         diff_lb = quantile(diff, probs = 0.025),
+         diff_ub = quantile(diff, probs = 0.975)) %>%
+  select(antigenf,starts_with("mean_"), starts_with("diff_")) %>%
+  slice(1)
+  
+mu_serop2 <- mu_serop %>%
+  left_join(mu_serop_ci, by = c("antigenf","phasef"))
+  
+```
+
+### Estimate interaction p-values
+
+Estimate interaction p-values on the additive scale using an ANOVA on cluster level means.
+
+```{r seroprev p-values for interaction phase}
+
+#-----------------------------
+# test for interaction on
+# the additive scale using
+# ANOVA F-test on cluster level means
+# See Hayes and Moulten 2017, 
+# section 10.8 (p241)
+#-----------------------------
+clmeans_serop <- d_serop %>% 
+    group_by(antigenf,arm,phasef,clusterid) %>%
+    summarize(seroprev = mean(seropos), .groups = "keep")
+
+serop_phase_Ftest <- foreach(abi = levels(d_serop$antigenf), .combine = rbind) %do% {
+    # restrict to a particular antigen
+    # summarize cluster level means by phase and arm
+    di <- clmeans_serop %>% filter(antigenf == abi) 
+  
+    # ANOVA F-test on cluster level means
+    # See Hayes and Moulten 2017, section 10.8 (p241)
+    fiti <- lm(seroprev ~ arm*phasef, data=di)
+    intFP <- as.numeric(anova(fiti)[3,4:5])
+    res <- data.frame(antigenf=abi,phasef="36",intF=intFP[1],intP=intFP[2])
+    
+  }
+
+```
+
+
+### Table of results
+```{r seroprev means by phase table}
+mu_serop_table <- mu_serop2 %>%
+  ungroup() %>%
+  left_join(serop_phase_Ftest, by = c("antigenf","phasef")) %>%
+  mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
+  select(antigenf,phasef, control, azithro, diff_ci, intP)
+
+knitr::kable(mu_serop_table,
+             col.names = c("Pathogen, antigen","Phase", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
+             digits = c(0,0,2,2,0,3),
+             align = "lcccc") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
+  add_header_above(c(" " = 2, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 28) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 29, end_row = 64) %>%
+  footnote(
+    symbol=c("P-value for additive interaction by study phase.")
+  )
+
+```
+
+
+### Figure of results
+
+```{r serop diff phase figure enterics}
+#------------------------------
+# plot the difference between
+# arms by phase
+#------------------------------
+
+# format the output for plotting
+mu_serop_plot2 <- mu_serop2 %>%
+  ungroup() #%>%
+  # mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
+mu_serop_plot2$group = "enterics\nand\nstrep"
+mu_serop_plot2$group[grep("P. ",mu_serop_plot2$pathogen)] <- "malaria"
+
+# make the figure
+pcols <- brewer.pal(9,"PuBuGn")[5:8]
+plot_serop_diff_phase_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group!="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
+  facet_wrap(antigenf~., ncol=3, nrow = 3) +
+  geom_hline(yintercept = 0, color = "gray60") +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
+  geom_point(alpha=0.6) +
+  scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
+  scale_color_manual(values = pcols) +
+  labs(x = "study phase (months)", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "A") +
+  coord_cartesian(ylim = c(-0.2,0.2)) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+```{r seroprev diff phase figure malaria}
+#------------------------------
+# plot the difference between
+# arms by phase
+#------------------------------
+pcols <- brewer.pal(9,"PuBuGn")[5:8]
+plot_serop_diff_phase_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group=="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
+  facet_wrap(antigenf~., ncol=3, nrow = 3) +
+  geom_hline(yintercept = 0, color = "gray60") +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
+  geom_point(alpha=0.6) +
+  scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
+  scale_color_manual(values = pcols) +
+  labs(x = "study phase (months)", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "B") +
+  coord_cartesian(ylim = c(-0.2,0.2)) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+
+```
+
+```{r serop composite figure, fig.width = 10, fig.height = 6}
+plot_serop_comp_phase <- grid.arrange(plot_serop_diff_phase_enterics,plot_serop_diff_phase_malaria,ncol=2,nrow=1, widths = c(1,1))
+
+ggsave(here("figures","mordor-ab-diff-seroprev-by-phase.png"),plot_serop_comp_phase,device = "png",width = 13, height = 5)
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
