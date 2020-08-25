@@ -282,6 +282,43 @@ d4 <- d4 %>%
   mutate(childid = ifelse(is.na(childid),childid_recode,childid))
 
 
+#-------------------------------
+# For each study cluster, identify
+# the earliest treatment date in
+# each phase, and calculate
+# the days between treatments
+# merge back to the main dataset
+#-------------------------------
+d_firsttr <- d4 %>%
+  group_by(clusterid, phase) %>%
+  summarize(mintrdate = min(trdate,na.rm = TRUE), .groups = "keep")
+# cluster C51 is missing 
+# treatent information in phase6
+# assume it was 183 days later than phase0
+d_firsttr$mintrdate[d_firsttr$clusterid=="C51" & d_firsttr$phase == 6] <- as.Date("2015-07-06")+183
+d_firsttr <- d_firsttr %>%
+  group_by(clusterid) %>%
+  mutate(firsttr = ifelse(phase == 0, mintrdate, NA),
+         firsttr = as.Date(max(firsttr,na.rm = TRUE),origin ="1970-01-01"),
+         diff_phase0 = mintrdate - firsttr,
+         diff_phase = mintrdate - lag(mintrdate),
+         diff_phase = ifelse(phase == 0, 0, diff_phase)) 
+
+d4 <- left_join(d4,d_firsttr, by = c("clusterid","phase"))
+
+#-------------------------------
+# Identify children who were
+# less than 6 months old
+# at the beginning of the trial
+# defined as the first treatment
+# date for their cluster
+#-------------------------------
+d4 <- d4 %>%
+  mutate(agem_start = as.numeric(agem - diff_phase0/30.4167),
+         agem_start_under6 = ifelse(agem_start <=6, "Yes","No"),
+         agem_start_under6 = factor(agem_start_under6))
+
+
 ```
 
 
@@ -668,7 +705,7 @@ d10 <- d9 %>%
 # and save data
 #-------------------------------
 d11 <- d10 %>%
-  select(clusterid,phase,arm,childid,agem,sex,testdate,dose,trdate,med_trdate, pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
+  select(clusterid,phase,arm,childid,agem,agem_start, agem_start_under6, sex, testdate,dose,trdate,med_trdate,diff_phase0,diff_phase, pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
 
 summary(d11)
 write_rds(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
