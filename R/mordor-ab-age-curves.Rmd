@@ -607,7 +607,7 @@ plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit,
   scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
-  coord_cartesian(ylim = c(0,1.04)) +
+  coord_cartesian(ylim = c(0,1.04), xlim = c(0,60)) +
   labs(x = "age, months", y = "seroprevalence (%)", tag = "B") +
   theme_minimal() +
   theme(
@@ -640,8 +640,9 @@ Seroconversion rate figure.
 # to convert units to per year
 #-----------------------------
 foip_malaria <- fit_foi_age %>%
-  filter(antigenf %in% levels(fit_foi_age$antigenf)[12:20]) %>%
-  mutate(antigenf = droplevels(antigenf))
+  mutate(antigenf = factor(antigenf,levels = levels(d_foi$antigenf)[12:20])) %>%
+  filter(!is.na(antigenf))
+  
 
 pcols <- c(vircols[3],cbpal[2])
 plot_age_foi_malaria <- ggplot(data = foip_malaria , aes(x = agem, y = 12*foi, group = arm, color = arm, fill = arm)) +
@@ -656,7 +657,7 @@ plot_age_foi_malaria <- ggplot(data = foip_malaria , aes(x = agem, y = 12*foi, g
   scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
-  coord_cartesian(ylim = c(0,2)) +
+  coord_cartesian(ylim = c(0,2), xlim = c(0,60)) +
   labs(x = "age, months", y = expression(paste("seroconversion rate per year (force of infection), ",lambda,"(a)"))) +
   theme_minimal() +
   theme(
