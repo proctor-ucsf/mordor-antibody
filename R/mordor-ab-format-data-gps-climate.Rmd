@@ -1,0 +1,233 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Format GPS and climate data for analysis"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+
+#----------------------------
+# spatial packages
+# used only for this script
+# (it's a pain to load them
+# for all scripts b/c raster
+# conflicts with dplyr::select)
+#----------------------------
+library(raster)
+library(ncdf4)
+
+```
+
+# Load cluster list from morbidity data
+
+Read in the final morbidity dataset shared by Jermey Keenan in December 2019. 
+
+```{r format morbidity}
+#-------------------------------
+# read in the full morbidity file
+#-------------------------------
+md <- read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
+                      col_types = cols(code_bspot_ = col_character(),
+                                       arm = col_character(),
+                                       txlabelgwu = col_character(),
+                                       txdate = col_character(),
+                                       dosex = col_character()))
+
+
+#-------------------------------
+# The code below follows the
+# approach used in the main
+# data formatting script. But,
+# NOTE: this is slightly fragile
+# in that it creates a new 
+# cluster ID that should be the
+# same as the main data processing
+# step (confirmed through inspection)
+# but is not necessarily as robust
+# as retaining the cluster name
+# however, we have dropped the
+# cluster name from the main 
+# data set to protect confidentiality
+#-------------------------------
+
+  
+#-------------------------------
+# filter out observations with
+# gwunotes_ not missing (indicates a problem observation)
+#
+# create a community ID variable
+# that isn't based on names
+#
+# for each community and phase
+# create a median treatment
+# date
+#-------------------------------
+md2 <- md %>% 
+  dplyr::select(gwu,gwunotes_) %>%
+  filter(is.na(gwunotes_)) %>%
+  dplyr::select(-gwunotes_) %>%
+  group_by(gwu) %>%
+  slice(1) %>%
+  mutate(cluster_name = str_to_upper(gwu))
+  
+md2$clusterid <- paste0("C",group_indices(md2,cluster_name)) 
+
+```
+
+# Load MORDOR GPS
+
+Load GPS centroids for MORDOR morbidity clusters
+
+```{r load mordor gps}
+#-------------------------------
+# Load MORDOR morbidity cluster
+# GPS coordinates
+#-------------------------------
+d_gps <- read_csv(here("data","mordor-morbidity-cluster-gps.csv")) %>%
+  mutate(cluster_name = str_to_upper(gwu))
+
+#-------------------------------
+# merge the cluster IDs
+# onto the GPS coordinates
+#-------------------------------
+d_gps2 <- d_gps %>%
+  left_join(md2, by = "cluster_name") %>%
+  dplyr::select(clusterid,cluster_name,longitude,latitude)
+
+```
+
+
+# Load Climate Data
+
+Monthly precipitation data, global extent
+
+CRU TS4.04: Climatic Research Unit (CRU) Time-Series (TS) version 4.04 of high-resolution gridded data of month-by-month variation in climate (Jan. 1901- Dec. 2019)
+
+Harris, I., Osborn, T. J., Jones, P. & Lister, D. Version 4 of the CRU TS monthly high-resolution gridded multivariate climate dataset. Sci Data 7, 109 (2020).
+https://www.nature.com/articles/s41597-020-0453-3
+https://www.ncbi.nlm.nih.gov/pubmed/32246091
+
+http://data.ceda.ac.uk/badc/cru/data/cru_ts/cru_ts_4.04/data/pre
+https://www.benjaminbell.co.uk/2018/01/getting-climate-data.html
+
+```{r load CRU data}
+#-------------------------------
+# Load the CRU TS precipitation 
+# dataset into R 
+#-------------------------------
+d_pre <- brick(here("data/cru_ts4_04_2011-2019","cru_ts4.04.2011.2019.pre.dat.nc"), varname="pre")
+
+```
+
+# Spatial merge of CRU to clusters
+
+```{r spatial merge of precip data}
+#-------------------------------
+# Spatial merge of CRU time series 
+# to the 30 MORDOR morbidity clusters
+#-------------------------------
+mordor_pre <- data.frame(clusterid=d_gps2$clusterid,
+                         cluster_name=d_gps2$cluster_name,
+                         extract(d_pre, d_gps2[c("longitude","latitude")])
+)
+
+#-------------------------------
+# reshape the data from wide
+# to long format
+#-------------------------------
+d_pre2 <- mordor_pre %>%
+  group_by(clusterid,cluster_name) %>%
+  pivot_longer(cols = starts_with("X"),names_to = "rawdate", names_prefix = "X", values_to = "pre")
+
+#-------------------------------
+# format the dates
+#-------------------------------
+d_pre3 <- d_pre2 %>%
+  mutate(pdate = as_date(rawdate))
+
+```
+
+# Plot precipitation time series 
+
+Plot the precipitation time series for the 30 communities
+
+All communities share the same overall precipitation patterns.  Therefore, we can be confident in defining wet seasons consistently across communities.
+
+```{r plot precip time series}
+prets_plot <- ggplot(data = d_pre3, aes(x = pdate, y = pre, color = clusterid)) +
+  geom_line(alpha = 0.3) +
+  labs(y = "monthly precipitation (mm)", x = "date")
+
+prets_plot
+
+
+```
+
+# Identify the wet season
+
+Create indicators of "wet season", defined as >4 mm rainfall in each month. A 4 mm cutoff was chosen based on visual inspection of the classification across years in the 2011 - 2019 time series (below).
+
+```{r code wet season}
+d_pre4 <- d_pre3 %>%
+  mutate(season = ifelse(pre>4, "wet season","dry season"),
+         season = factor(season))
+
+
+```
+
+Plot of precipitation with seasons indicated
+
+```{r plot precip time series coded as season}
+prets_plot2 <- ggplot(data = d_pre4 %>% filter(clusterid=="C7"), aes(x = pdate, y = pre)) +
+  geom_polygon(alpha = 0.2) +
+  geom_point(aes(color = season), alpha = 0.4) +
+  scale_color_manual(values = cbpal[c(2,3)],guide = guide_legend(override.aes = list(alpha=1))) +
+  scale_y_continuous(breaks = seq(0,250,by=50)) +
+  labs(y = "monthly precipitation (mm)", x = "date") +
+  theme_minimal()
+
+prets_plot2
+
+ggsave(here("figures","mordor-ab-monthly-precip.png"),device = "png", width = 8, height = 4)
+
+```
+
+# Save a precipitation dataset
+
+```{r save precipitation data}
+d_pre5 <- d_pre4 %>%
+  ungroup() %>%
+  arrange(clusterid,pdate) %>%
+  dplyr::select(clusterid, pdate, pre, season)
+
+write_csv(d_pre5, path = here("data","mordor-ab-monthly-precip.csv"))
+
+```
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
