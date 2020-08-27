@@ -182,6 +182,13 @@ Identify different trajectories, based on whether children experienced a 4-fold 
 #-----------------------------
 # identify incident 
 # seroconversions and reversions
+# in the dataset with 
+# measurements separated by
+# antigen (i.e., not combined responses for enterics)
+# this is done to visualize
+# the 4-fold changes in IgG
+# which only make sense for
+# individual antigens (not combined)
 #-----------------------------
 
 # group the data by child and
@@ -288,9 +295,13 @@ log10labs <- c(
 
 pmfi_long <- ggplot(data = dl2pp, aes(x = phase, y = logmfi, group = childid, color = sero_comp)) +
   facet_wrap(~antigenf,ncol=4) +
-  geom_line(alpha = 0.1) +
+  # first draw all the lines in light grey
+  geom_line(alpha=0.2,color = "gray90") +
+  # then draw the lines with color 
+  # (setting <4-fold change color to missing to better display the >4-fold change lines)
+  geom_line(alpha=0.25) +
   geom_hline(aes(yintercept = log10(serocut)),linetype = "dashed") +
-  scale_color_manual(values=c(cbpal[c(2,8,3)],"gray70"),
+  scale_color_manual(values=c(cbpal[c(2,8,3)],NA),
                      guide=guide_legend(title="MFI change:",
                                         override.aes = list(alpha=1), nrow=2,ncol=3))+
   scale_y_continuous(breaks = 0:4, labels = log10labs) +
@@ -306,7 +317,8 @@ pmfi_long <- ggplot(data = dl2pp, aes(x = phase, y = logmfi, group = childid, co
 
 pmfi_long
 
-
+# save a png file
+ggsave(filename = here("figures","mordor-ab-long-trajectories.png"),device = "png",width=8,height=12)
 ```
 
 
