@@ -1,0 +1,318 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Longitudinal estimates of seroconversion"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Estimate prospective seroconversion rates among children measured longitudinally. Assume that events ocurred at the midpoint of the interval, consistent with the mortality outcome measurement and with past longitudinal analyses of enteric seronconversion.
+
+Keenan, J. D., Bailey, R. L., West, S. K., Arzika, A. M., Hart, J., Weaver, J., Kalua, K., Mrango, Z., Ray, K. J., Cook, C., Lebas, E., O’Brien, K. S., Emerson, P. M., Porco, T. C., Lietman, T. M. & MORDOR Study Group. Azithromycin to Reduce Childhood Mortality in Sub-Saharan Africa. _N. Engl. J. Med._ 378, 1583–1592 (2018). https://pubmed.ncbi.nlm.nih.gov/29694816/
+
+Arnold, B. F., Martin, D. L., Juma, J., Mkocha, H., Ochieng, J. B., Cooley, G. M., Omore, R., Goodhew, E. B., Morris, J. F., Costantini, V., Vinjé, J., Lammie, P. J. & Priest, J. W. Enteropathogen antibody dynamics and force of infection among children in low-resource settings. _eLife_ 8, (2019). https://pubmed.ncbi.nlm.nih.gov/31424386/
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+#-------------------------------
+# drop the trachoma, strongyloides, 
+# and GST negative control values
+#-------------------------------
+d2 <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages without any
+# variation in antibody levels
+# (esp. enterics, which become saturated)
+#
+# Enterics: 6 mo - 24
+# (except for salmonella, strep A)
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+d2 <- d2 %>%
+  filter(agem >= 6) %>%
+  mutate(agedrop = case_when(
+    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+    TRUE ~ 0
+  )
+         ) %>%
+  filter(agedrop == 0)
+
+```
+
+# Identify children measured longitudinally
+
+Identify children without longitudinal measurements. Tally them, then exclude them.
+
+```{r identify longitudinal children}
+
+#-------------------------------
+# identify the number of observations
+# for each child
+#-------------------------------
+d_nolong <- d2 %>%
+  group_by(antigenf,childid) %>%
+  arrange(phase) %>%
+  mutate(nobs = n())
+
+#-------------------------------
+# print number of children with 
+# different numbers of measurements
+# for enterics (6-24 mos) and malaria (12-59 mos)
+#-------------------------------
+table(d_nolong$nobs[d_nolong$antigen=="etec"])/1:4
+table(d_nolong$nobs[d_nolong$antigen=="ama"])/1:5
+
+#-------------------------------
+# print number of observations 
+# excluded by outcome
+#-------------------------------
+table(d_nolong$antigenf,d_nolong$nobs>1)
+
+#-------------------------------
+# restrict to children with >1 obs
+# then, identify measurements
+# with adjacent phases
+#-------------------------------
+dl <- d_nolong %>%
+  filter(nobs>1) %>%
+  arrange(antigenf,childid,phase) %>%
+  mutate(phase_diff = phase - lag(phase))
+
+table(dl$antigenf,dl$phase_diff)
+
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+Then bind those to the original data frame to create a seropositivity dataset for analyses.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- dl %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phase) %>%
+  mutate(seropos = max(seropos)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  )) %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
+
+
+```
+
+```{r create seropositivity dataset, warning=FALSE}
+d_serop <- dl %>%
+  # drop pathogens w/ composite indicators
+  filter(!pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  # add composite indicators
+  bind_rows(d_enteric_comps) %>%
+  # create new factor levels that includes composite indicators
+  mutate(antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Cholera CTB",
+    "Salmonella LPS B or D",
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+   levels(d2$antigenf)[11:20]) )
+         ) %>%
+  # drop extra variables (MFI doesn't correspond to composite seropos so drop)
+  dplyr::select(-mfi,-logmfi,-agedrop)
+
+```
+
+
+
+# Plot longitudinal IgG trajectories
+
+Identify different trajectories, based on whether children experienced a 4-fold increase or decrease in IgG to above or below the seropositivity cutoff.  This is consistent with the analysis from Arnold et al. 2019, 
+
+```{r identify igg changes}
+
+#-----------------------------
+# identify incident 
+# seroconversions and reversions
+#-----------------------------
+
+# group the data by child and
+# use lags to identify
+# time between measurements,
+# sero-conversions + sero-reversions 
+# between measurements
+# set the first measurement to 
+# missing for the incidence indicators
+# (using the is.na(age_diff) to identify them)
+dl2 <- dl %>%
+  group_by(antigenf,childid) %>% 
+  arrange(antigenf,childid,phase) %>%
+  mutate(age_min  = min(agem),
+         age_diff = agem - lag(agem),
+         
+         logmfi_lag  = lag(logmfi),
+         logmfi_lead = lead(logmfi),
+         logmfi_dlag  = logmfi - logmfi_lag,
+         logmfi_dlead = logmfi_lead - logmfi,
+         
+         # incident seroconversions and reversions
+         # including cumulative numbers
+         seropos_lag  = lag(seropos),
+         seroi = ifelse(seropos==1 & seropos_lag==0,1,0),
+         seroi = ifelse(is.na(age_diff),NA,seroi),
+         seroin = cumsum(ifelse(is.na(seroi),0,seroi)),
+         seroin = ifelse(seroi==1,seroin,0),
+         seror = ifelse(seropos==0 & seropos_lag==1,1,0),
+         seror = ifelse(is.na(age_diff),NA,seror),
+         serorn = cumsum(ifelse(is.na(seror),0,seror)),
+         serorn = ifelse(seror==1,serorn,0)
+         ) %>%
+  select(
+         childid,phase,
+         starts_with("age"),
+         antigen,antigenf,
+         mfi,logmfi,logmfi_dlag,logmfi_dlead,
+         serocut,seropos,
+         seroi,seroin,seror,serorn,
+         -logmfi_lag,-logmfi_lead,-seropos_lag)
+
+#-----------------------------
+# incident seroconversions based on a 4-fold increase in MFI
+# with a second measure above the seropositivity cutoff
+# incident seroreversions based on a 4-fold decrease in MFI
+# with the first measure above the seropositivity cutoff
+#-----------------------------
+dl2 <- dl2 %>%
+  mutate(seroi4fold = ifelse(logmfi_dlag>log10(4) & logmfi>log10(serocut),1,0),
+         seroin4fold = cumsum(ifelse(is.na(seroi4fold),0,seroi4fold)),
+         seroin4fold = ifelse(seroi4fold==1,seroin4fold,0),
+         
+         seror4fold=ifelse(logmfi_dlag< -log10(4) & lag(logmfi)>log10(serocut),1,0),
+         serorn4fold = cumsum(ifelse(is.na(seror4fold),0,seror4fold)),
+         serorn4fold = ifelse(seror4fold==1,serorn4fold,0)
+         )
+
+#-----------------------------
+# create a label for different
+# antibody patterns
+#-----------------------------
+dl2pp <- dl2 %>%
+  arrange(antigenf,childid,phase) %>%
+  group_by(antigenf,childid) %>%
+  mutate(measnum=row_number()) %>%
+  mutate(
+    logmfi_chng = ifelse(logmfi_dlag>0,"Increasing","Decreasing"),
+    logmfi_chng = ifelse(is.na(logmfi_chng) & logmfi_dlead>0,"Increasing",logmfi_chng),
+    logmfi_chng = ifelse(is.na(logmfi_chng) & logmfi_dlead<0,"Decreasing",logmfi_chng),
+    logmfi_chng = factor(logmfi_chng,levels=c("Increasing","Decreasing")),
+    
+    sero_chng = ifelse(lead(seroi4fold)==1,">4-fold increase to above cutoff","<4-fold change"),
+    sero_chng = ifelse(lead(seror4fold)==1,">4-fold decrease from above cutoff",sero_chng),
+    sero_chng = ifelse(is.na(sero_chng),lead(sero_chng),sero_chng),
+    sero_chng = ifelse(is.na(sero_chng),lag(sero_chng),sero_chng),
+    sero_chng = factor(sero_chng,levels=c(">4-fold increase to above cutoff",">4-fold decrease from above cutoff","<4-fold change")),
+    
+    sero_comp = ifelse(lead(seroi)==1 & lead(seroi4fold==1),">4-fold increase, across cutoff","<4-fold change"),
+    sero_comp = ifelse(lead(seroi)==0 & lead(seroi4fold==1),">4-fold increase, above cutoff",sero_comp),
+    sero_comp = ifelse(lead(seror4fold)==1,">4-fold decrease",sero_comp),
+    sero_comp = factor(sero_comp,levels=c(">4-fold increase, across cutoff",">4-fold increase, above cutoff",">4-fold decrease","<4-fold change")),
+    
+    everseroi = max(seroi,na.rm=TRUE)
+    
+  ) 
+
+
+```
+
+Plot IgG levels by phase for individual children
+
+```{r plot mfi by phase}
+
+# custom log labels
+log10labs <- c( 
+  expression(10^0),
+  expression(10^1),
+  expression(10^2),
+  expression(10^3),
+  expression(10^4)
+)
+
+
+pmfi_long <- ggplot(data = dl2pp, aes(x = phase, y = logmfi, group = childid, color = sero_comp)) +
+  facet_wrap(~antigenf,ncol=4) +
+  geom_line(alpha = 0.1) +
+  geom_hline(aes(yintercept = log10(serocut)),linetype = "dashed") +
+  scale_color_manual(values=c(cbpal[c(2,8,3)],"gray70"),
+                     guide=guide_legend(title="MFI change:",
+                                        override.aes = list(alpha=1), nrow=2,ncol=3))+
+  scale_y_continuous(breaks = 0:4, labels = log10labs) +
+  scale_x_continuous(breaks=c(0,6,12,24,36)) + 
+  labs(x = "study phase (months since baseline)", y = "Luminex response (MFI-bg)") +
+  theme_minimal() +
+  theme(
+      legend.position="top",
+      panel.grid.minor=element_blank(),
+      panel.grid.major.y=element_blank(),
+      axis.ticks.y=element_line(color="gray40")
+    )
+
+pmfi_long
+
+
+```
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
