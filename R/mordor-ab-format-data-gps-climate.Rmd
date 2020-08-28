@@ -33,6 +33,7 @@ source(here("R","mordor-ab-Config.R"))
 # for all scripts b/c raster
 # conflicts with dplyr::select)
 #----------------------------
+library(sp)
 library(raster)
 library(ncdf4)
 
@@ -200,9 +201,10 @@ Plot of precipitation with seasons indicated
 ```{r plot precip time series coded as season}
 prets_plot2 <- ggplot(data = d_pre4 %>% filter(clusterid=="C7"), aes(x = pdate, y = pre)) +
   geom_polygon(alpha = 0.2) +
-  geom_point(aes(color = season), alpha = 0.4) +
-  scale_color_manual(values = cbpal[c(2,3)],guide = guide_legend(override.aes = list(alpha=1))) +
+  geom_point(aes(color = season), alpha = 1, size = 0.7) +
+  scale_color_manual(values = cbpal[c(2,3)],guide = guide_legend(override.aes = list(alpha=1, size = 2))) +
   scale_y_continuous(breaks = seq(0,250,by=50)) +
+  scale_x_date() +
   labs(y = "monthly precipitation (mm)", x = "date") +
   theme_minimal()
 
@@ -214,11 +216,29 @@ ggsave(here("figures","mordor-ab-monthly-precip.png"),device = "png", width = 8,
 
 # Save a precipitation dataset
 
+Include monthly total precipitation estiamtes for each cluster, along with the estimated start and end date of the wet season in each year.
+
 ```{r save precipitation data}
+#------------------------------------
+# estimate the start and end of the
+# wet season in each year
+#------------------------------------
+
 d_pre5 <- d_pre4 %>%
   ungroup() %>%
-  arrange(clusterid,pdate) %>%
-  dplyr::select(clusterid, pdate, pre, season)
+  mutate(pmnth = month(pdate),
+         pyear = year(pdate)) %>%
+  group_by(clusterid,pyear,season) %>%
+  mutate(s_start = min(pdate),
+         s_end = max(pdate),
+         wet_start = ifelse(season=="wet season",s_start,NA),
+         wet_end = ifelse(season == "wet season",s_end,NA)) %>%
+  group_by(clusterid,pyear) %>%
+  mutate(wet_start = as_date(max(wet_start, na.rm = TRUE)),
+         wet_end = as_date(max(wet_end, na.rm = TRUE))
+         ) %>%
+  dplyr::select(clusterid,pdate,pyear,pmnth,season,wet_start,wet_end,pre) %>%
+  arrange(clusterid,pdate)
 
 write_csv(d_pre5, path = here("data","mordor-ab-monthly-precip.csv"))
 
