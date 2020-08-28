@@ -188,7 +188,8 @@ md3 <- md2 %>%
   filter(is.na(gwunotes_)) %>%
   select(-gwunotes_) %>%
   mutate(cluster_name = str_to_upper(clname))
-md3$clusterid <- paste0("C",group_indices(md3,cluster_name)) 
+md3$clusterid <- paste0("C",group_indices(md3,cluster_name))
+
 
 md3 <- md3 %>%
   group_by(clusterid,phase) %>%
@@ -318,9 +319,53 @@ d4 <- d4 %>%
          agem_start_under6 = ifelse(agem_start <=6, "Yes","No"),
          agem_start_under6 = factor(agem_start_under6))
 
-
 ```
 
+# Merge in wet season information
+
+From the monthly total rainfall data, merge by clusterid and year the start and end dates of the wet season.
+
+```{r merge in wet season}
+#-------------------------------
+# load monthly precipitation
+# data, created by
+# mordor-ab-format-data-gps-climate.Rmd
+#-------------------------------
+d_pre <- read_csv(here("data","mordor-ab-monthly-precip.csv"))
+
+d_pre2 <- d_pre %>%
+  group_by(clusterid,pyear) %>%
+  select(clusterid,pyear,wet_start,wet_end) %>%
+  slice(1) %>%
+  ungroup()
+
+#-------------------------------
+# for the MORDOR data, use each cluster's median
+# test date.  merge by year 
+# (since wet seasons do not straddle calendar years)
+#-------------------------------
+d4 <- d4 %>%
+  group_by(clusterid,phase) %>%
+  mutate(medtestdate = as_date(median(testdate)),
+         pyear = year(medtestdate)
+  ) %>%
+  left_join(d_pre2, by = c("clusterid","pyear")) %>%
+  select(-pyear)
+
+#-------------------------------
+# summarize wet season begin and 
+# end dates for each phase
+#-------------------------------
+d4 %>% group_by(phase) %>% summarize(wet_start = as_date(min(wet_start), .groups = "keep"), wet_end = as_date(max(wet_end)))
+
+#-------------------------------
+# identify wet season observations
+#-------------------------------
+d4 <- d4 %>%
+  mutate(season = ifelse(testdate >= wet_start & testdate <= wet_end, "wet season","dry season"),
+         season = factor(season))
+
+```
 
 # Re-randomize for masking
 
@@ -705,7 +750,12 @@ d10 <- d9 %>%
 # and save data
 #-------------------------------
 d11 <- d10 %>%
-  select(clusterid,phase,arm,childid,agem,agem_start, agem_start_under6, sex, testdate,dose,trdate,med_trdate,diff_phase0,diff_phase, pf_thicksmear,pf_density,pf_gameto,dbsid,type,well,pathogen,antigen,antigenf,mfi,logmfi,serocut,serocut_desc,seropos)
+  select(clusterid,phase,arm,childid,agem,agem_start, agem_start_under6, sex, 
+         testdate,dose,trdate,med_trdate,diff_phase0,diff_phase,
+         wet_start,wet_end,season,
+         pf_thicksmear,pf_density,pf_gameto,
+         dbsid,type,well,pathogen,antigen,antigenf,
+         mfi,logmfi,serocut,serocut_desc,seropos)
 
 summary(d11)
 write_rds(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
