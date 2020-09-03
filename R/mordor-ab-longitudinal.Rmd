@@ -253,7 +253,7 @@ dl2 <- dl %>%
          serorn = ifelse(seror==1,serorn,0)
          ) %>%
   select(
-         clusterid,childid,phase,
+         clusterid,childid,arm,phase,
          starts_with("age"),
          antigen,antigenf,
          mfi,logmfi,logmfi_dlag,logmfi_dlead,
@@ -421,7 +421,7 @@ dl4 <- dl3 %>%
            "Giardia VSP-3 or VSP-5",
            levels(d2$antigenf)[11:20]) )
          ) %>%
-  select(antigenf2,antigenf,clusterid,childid,phase,agem,age_diff,seropos,seroi4fold,seror4fold) %>%
+  select(antigenf2,antigenf,clusterid,childid,arm,phase,agem,age_diff,seropos,seroi4fold,seror4fold) %>%
   # since incidence could fall at slightly different times across the antigens
   # for the same pathogen, use the earlier onset as the incidence measure
   arrange(antigenf2,childid,phase) %>%
@@ -439,7 +439,7 @@ dl4 <- dl3 %>%
          seror4fold=max(seror4fold)
          ) %>%
   slice(1) %>%
-  select(antigenf=antigenf2,clusterid,childid,phase,agem,age_diff,seropos,seroi4fold,seror4fold) %>%
+  select(antigenf=antigenf2,clusterid,childid,arm,phase,agem,age_diff,seropos,seroi4fold,seror4fold) %>%
   group_by(antigenf,childid) %>%
   arrange(antigenf,childid,phase) %>%
   mutate(obsnum = row_number())
@@ -566,6 +566,7 @@ rate_ests_4fold <- left_join(rate_ests_4fold,rate_cis,by="antigenf") %>%
   select(antigenf,ni,nit,starts_with("seroi"),nr,nrt,starts_with("seror"))
 
 ```
+
 Confirm bootstrap distributions of the rates are smooth and reasonable
 ```{r check boot distributions, fig.width = 8, fig.height = 12}
 bsum <- bootests %>% 
@@ -598,10 +599,140 @@ rate_ests_4fold %>%
 
 ## Save longitudinal rate estimates for other comparisons
 
+Save longitudinal rates pooled over arms (total population)
+
 ```{r save long rates}
 write_csv(rate_ests_4fold,here("data","mordor-ab-longitudinal-rate-ests.csv"))
 ```
 
+# Estimate rates by arm
+
+Estimate prospective incidence rates and incidence rate ratio by arm as a sensitivity analysis for the primary analysis that estimates the hazard ratio from a current status analysis of age-structured seroprevalence data.
+
+```{r estimate prospective rates by arm}
+#-----------------------------
+# estimate sero-incidence rates
+# for antibody boosting and waning 
+# by arm
+# estimate SEs with a bootstrap
+#-----------------------------
+
+#-----------------------------
+# estimate incidence rates
+# for each antibody
+# units are episodes per child-year
+#-----------------------------
+rate_ests_by_arm <- dl5 %>%
+  group_by(antigenf,arm) %>%
+  summarize(ni=sum(seroi4fold,na.rm=T),
+            nit=sum(ptc,na.rm=T),
+            nr=sum(seror4fold,na.rm=T),
+            nrt=sum(ptr,na.rm=T),
+            .groups = "keep") %>%
+  mutate(seroi=ni/nit,seror=nr/nrt)
+
+#-----------------------------
+# get bootstrap CIs
+# resampling clusters with 
+# replacement due to repeated
+# measures
+#-----------------------------
+dboot <- dl5 %>%
+  group_by(antigenf,arm) %>%
+  select(clusterid,antigenf,arm,seroi4fold,seror4fold,ptc,ptr)
+
+nreps <- 1000
+ids <- unique(dboot$clusterid)
+bsamp <- matrix(sample(ids,size=length(ids)*nreps,replace=TRUE),
+                nrow=length(ids),ncol=nreps)
+bootests <- foreach(ab=levels(dboot$antigenf),.combine=rbind) %:%
+  foreach(brep=1:nreps,.combine=rbind) %dopar% {
+    set.seed(brep)
+    di <- dboot %>% filter(antigenf==ab)
+    di <- left_join(data.frame(clusterid=bsamp[,brep]),di,by=c("clusterid")) %>%
+      select(-clusterid) %>% group_by(antigenf,arm) %>%
+      summarize_all(function(x) sum(x,na.rm=TRUE)) %>%
+      mutate(brep = brep)
+    }
+
+# estimate bootstrap 95% CIs for rates
+rate_cis_by_arm <- bootests %>% 
+  group_by(antigenf,arm) %>%
+  mutate(sero_c = seroi4fold/ptc,
+         sero_r = seror4fold/ptr) %>%
+  # restrict to finite values (some ETEC bootstrap replicates have a denominator of 0)
+  summarize(seroi_lb = quantile(sero_c[is.finite(sero_c)],probs=c(0.025),na.rm=T),
+            seroi_ub = quantile(sero_c[is.finite(sero_c)],probs=c(0.975),na.rm=T),
+            seror_lb = quantile(sero_r[is.finite(sero_r)],probs=c(0.025),na.rm=T),
+            seror_ub = quantile(sero_r[is.finite(sero_r)],probs=c(0.975),na.rm=T), 
+            .groups = "keep"
+            )
+
+rate_ests_by_arm <- left_join(rate_ests_by_arm,rate_cis_by_arm,by=c("antigenf","arm")) %>%
+  select(antigenf,arm,ni,nit,starts_with("seroi"),nr,nrt,starts_with("seror"))
+
+# Estimate bootstrapped 95% CI for IRR
+rate_boot_p <- bootests %>% 
+  filter(arm=="sun") %>% 
+  select(antigenf, brep,
+         seroi4fold_p = seroi4fold, ptc_p = ptc,
+         seror4fold_p = seror4fold, ptr_p = ptr)
+
+rate_boot_irr <- bootests %>% 
+  filter(arm=="moon") %>%
+  select(antigenf, brep,
+         seroi4fold_a = seroi4fold, ptc_a = ptc,
+         seror4fold_a = seror4fold, ptr_a = ptr) %>%
+  left_join(rate_boot_p, by = c("antigenf","brep")) %>%
+  mutate(irate_azithro = seroi4fold_a / ptc_a,
+         irate_placebo = seroi4fold_p / ptc_p,
+         rrate_azithro = seror4fold_a / ptr_a,
+         rrate_placebo = seror4fold_p / ptr_p,
+         irri = irate_azithro / irate_placebo)
+
+irr_cis <- rate_boot_irr %>%
+  group_by(antigenf) %>%
+  summarize(irr_lb = quantile(irri[is.finite(irri)],probs = c(0.025)),
+            irr_ub = quantile(irri[is.finite(irri)],probs = c(0.975)), 
+            .groups = "keep")
+
+irr_ests_p <- rate_ests_by_arm %>%
+  ungroup() %>%
+  filter(arm=="sun") %>%
+  select(antigenf,ni_p = ni, nit_p = nit, seroi_p = seroi, seroi_lb_p = seroi_lb, seroi_ub_p = seroi_ub)
+irr_ests <- rate_ests_by_arm %>%
+  ungroup() %>%
+  filter(arm == "moon") %>%
+  select(antigenf, ni_a = ni, nit_a = nit, seroi_a = seroi, seroi_lb_a = seroi_lb, seroi_ub_a = seroi_ub) %>%
+  left_join(irr_ests_p, by = "antigenf") %>%
+  mutate(irr = seroi_a / seroi_p) %>%
+  left_join(irr_cis, by = "antigenf")
+
+```
+
+## Summary table
+```{r summary irr table}
+
+knitr::kable(irr_ests,
+             caption = "Seroconversion rates estimated longitudinally among children in MORDOR Niger, 2015 - 2018.",
+             col.names = c("Pathogen, antigen", "N events","Person-Years","Rate per year","min 95", "max 95","N events","Person-Years","Rate per year","min 95", "max 95", "IRR", "min 95", "max 95"), 
+             digits = 2,
+             align = "lrrcccrrcccccc") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
+  add_header_above(c(" " = 1, "Azithromycin" = 5,  "Placebo" = 5, " " = 3)) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 8) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 8, end_row = 16) 
+
+```
+
+
+## Save longitudinal rate estimates by arm
+
+Save longitudinal rates by arm for other comparisons
+
+```{r save long irr ests}
+write_csv(irr_ests,here("data","mordor-ab-longitudinal-irr-ests.csv"))
+```
 
 # Session Info
 ```{r session info}
