@@ -673,13 +673,13 @@ rate_ests_by_arm <- left_join(rate_ests_by_arm,rate_cis_by_arm,by=c("antigenf","
 
 # Estimate bootstrapped 95% CI for IRR
 rate_boot_p <- bootests %>% 
-  filter(arm=="sun") %>% 
+  filter(arm=="placebo") %>% 
   select(antigenf, brep,
          seroi4fold_p = seroi4fold, ptc_p = ptc,
          seror4fold_p = seror4fold, ptr_p = ptr)
 
 rate_boot_irr <- bootests %>% 
-  filter(arm=="moon") %>%
+  filter(arm=="azithro") %>%
   select(antigenf, brep,
          seroi4fold_a = seroi4fold, ptc_a = ptc,
          seror4fold_a = seror4fold, ptr_a = ptr) %>%
@@ -698,11 +698,11 @@ irr_cis <- rate_boot_irr %>%
 
 irr_ests_p <- rate_ests_by_arm %>%
   ungroup() %>%
-  filter(arm=="sun") %>%
+  filter(arm=="placebo") %>%
   select(antigenf,ni_p = ni, nit_p = nit, seroi_p = seroi, seroi_lb_p = seroi_lb, seroi_ub_p = seroi_ub)
 irr_ests <- rate_ests_by_arm %>%
   ungroup() %>%
-  filter(arm == "moon") %>%
+  filter(arm == "azithro") %>%
   select(antigenf, ni_a = ni, nit_a = nit, seroi_a = seroi, seroi_lb_a = seroi_lb, seroi_ub_a = seroi_ub) %>%
   left_join(irr_ests_p, by = "antigenf") %>%
   mutate(irr = seroi_a / seroi_p) %>%

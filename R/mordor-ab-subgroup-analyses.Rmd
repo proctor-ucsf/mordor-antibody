@@ -151,8 +151,8 @@ n_mfi <- d2 %>%
   mutate(nomiss = ifelse(!is.na(logmfi),1,0)) %>%
   summarize(nobs = sum(nomiss), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf,phasef), names_from = "arm", values_from = nobs) %>%
-  rename(control_n = sun,
-         azithro_n = moon)
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
 
 
 #-----------------------------
@@ -163,9 +163,7 @@ mu_mfi <- d2 %>%
   group_by(pathogen,antigenf,arm,phasef) %>%
   summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf,phasef), names_from = "arm", values_from = mean_mfi) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control)
+  mutate(diff = azithro - placebo)
 
 #-----------------------------
 # merge means onto the Ns
@@ -194,9 +192,7 @@ mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   group_by(antigenf,phasef,arm) %>%
   summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
   pivot_wider(id_cols = c("antigenf","phasef"), names_from = "arm", values_from = mean_mfi) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control, 
+  mutate(diff = azithro - placebo, 
          bootrep = bi)
   
 }
@@ -210,8 +206,8 @@ mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 #-----------------------------
 mu_mfi_ci <- mu_mfi_boot %>%
   group_by(antigenf,phasef) %>%
-  mutate(mean_c_lb = quantile(control, probs = 0.025),
-         mean_c_ub = quantile(control, probs = 0.975),
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
          mean_a_lb = quantile(azithro, probs = 0.025),
          mean_a_ub = quantile(azithro, probs = 0.975),
          diff_bmean = mean(diff),
@@ -265,7 +261,7 @@ mu_mfi_table <- mu_mfi2 %>%
   ungroup() %>%
   left_join(mfi_phase_Ftest,by=c("antigenf","phasef")) %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
-  select(antigenf, phasef, control, azithro, diff_ci,intP)
+  select(antigenf, phasef, placebo, azithro, diff_ci,intP)
 
 knitr::kable(mu_mfi_table,
              col.names = c("Pathogen, antigen", "Phase","Placebo","Azithro.","Difference (95% CI)","P-value*"), 
@@ -355,8 +351,8 @@ n_serop <- d_serop %>%
   mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
   summarize(nobs = sum(nomiss), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf, phasef), names_from = "arm", values_from = nobs) %>%
-  rename(control_n = sun,
-         azithro_n = moon)
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
 
 #-----------------------------
 # estimate seroprevalence by arm
@@ -366,9 +362,7 @@ mu_serop <- d_serop %>%
   group_by(pathogen,antigenf,arm, phasef) %>%
   summarize(mean_serop = mean(seropos), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf, phasef), names_from = "arm", values_from = mean_serop) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control)
+  mutate(diff = azithro - placebo)
 
 #-----------------------------
 # merge means onto the Ns
@@ -398,9 +392,7 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   group_by(antigenf,arm,phasef) %>%
   summarize(mean_serop = mean(seropos), .groups = "keep") %>%
   pivot_wider(id_cols = c("antigenf","phasef"), names_from = "arm", values_from = mean_serop) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control, 
+  mutate(diff = azithro - placebo, 
          bootrep = bi)
 
 }
@@ -415,8 +407,8 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 #-----------------------------
 mu_serop_ci <- mu_serop_boot %>%
   group_by(antigenf,phasef) %>%
-  mutate(mean_c_lb = quantile(control, probs = 0.025),
-         mean_c_ub = quantile(control, probs = 0.975),
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
          mean_a_lb = quantile(azithro, probs = 0.025),
          mean_a_ub = quantile(azithro, probs = 0.975),
          diff_bmean = mean(diff),
@@ -470,7 +462,7 @@ mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   left_join(serop_phase_Ftest, by = c("antigenf","phasef")) %>%
   mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
-  select(antigenf,phasef, control, azithro, diff_ci, intP)
+  select(antigenf,phasef, placebo, azithro, diff_ci, intP)
 
 knitr::kable(mu_serop_table,
              col.names = c("Pathogen, antigen","Phase", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
@@ -568,8 +560,8 @@ n_mfi <- d2 %>%
   mutate(nomiss = ifelse(!is.na(logmfi),1,0)) %>%
   summarize(nobs = sum(nomiss), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf,agem_start_under6), names_from = "arm", values_from = nobs) %>%
-  rename(control_n = sun,
-         azithro_n = moon)
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
 
 
 #-----------------------------
@@ -580,9 +572,7 @@ mu_mfi <- d2 %>%
   group_by(pathogen,antigenf,arm,agem_start_under6) %>%
   summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf,agem_start_under6), names_from = "arm", values_from = mean_mfi) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control)
+  mutate(diff = azithro - placebo)
 
 #-----------------------------
 # merge means onto the Ns
@@ -612,9 +602,7 @@ mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   group_by(antigenf,agem_start_under6,arm) %>%
   summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
   pivot_wider(id_cols = c("antigenf","agem_start_under6"), names_from = "arm", values_from = mean_mfi) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control, 
+  mutate(diff = azithro - placebo, 
          bootrep = bi)
   
 }
@@ -628,8 +616,8 @@ mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 #-----------------------------
 mu_mfi_ci <- mu_mfi_boot %>%
   group_by(antigenf,agem_start_under6) %>%
-  mutate(mean_c_lb = quantile(control, probs = 0.025),
-         mean_c_ub = quantile(control, probs = 0.975),
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
          mean_a_lb = quantile(azithro, probs = 0.025),
          mean_a_ub = quantile(azithro, probs = 0.975),
          diff_bmean = mean(diff),
@@ -685,7 +673,7 @@ mu_mfi_table <- mu_mfi2 %>%
   ungroup() %>%
   left_join(mfi_phase_Ftest,by=c("antigenf","agem_start_under6")) %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
-  select(antigenf, agem_start_under6, control, azithro, diff_ci,intP)
+  select(antigenf, agem_start_under6, placebo, azithro, diff_ci,intP)
 
 knitr::kable(mu_mfi_table,
              col.names = c("Pathogen, antigen", "<= 6 months at trial start","Placebo","Azithro.","Difference (95% CI)","P-value*"), 
@@ -777,8 +765,8 @@ n_serop <- d_serop %>%
   mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
   summarize(nobs = sum(nomiss), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf, agem_start_under6), names_from = "arm", values_from = nobs) %>%
-  rename(control_n = sun,
-         azithro_n = moon)
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
 
 #-----------------------------
 # estimate seroprevalence by arm
@@ -788,9 +776,7 @@ mu_serop <- d_serop %>%
   group_by(pathogen,antigenf,arm, agem_start_under6) %>%
   summarize(mean_serop = mean(seropos), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf, agem_start_under6), names_from = "arm", values_from = mean_serop) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control)
+  mutate(diff = azithro - placebo)
 
 #-----------------------------
 # merge means onto the Ns
@@ -820,9 +806,7 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   group_by(antigenf,arm,agem_start_under6) %>%
   summarize(mean_serop = mean(seropos), .groups = "keep") %>%
   pivot_wider(id_cols = c("antigenf","agem_start_under6"), names_from = "arm", values_from = mean_serop) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control, 
+  mutate(diff = azithro - placebo, 
          bootrep = bi)
 
 }
@@ -837,8 +821,8 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 #-----------------------------
 mu_serop_ci <- mu_serop_boot %>%
   group_by(antigenf,agem_start_under6) %>%
-  mutate(mean_c_lb = quantile(control, probs = 0.025),
-         mean_c_ub = quantile(control, probs = 0.975),
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
          mean_a_lb = quantile(azithro, probs = 0.025),
          mean_a_ub = quantile(azithro, probs = 0.975),
          diff_bmean = mean(diff),
@@ -892,7 +876,7 @@ mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   left_join(serop_phase_Ftest, by = c("antigenf","agem_start_under6")) %>%
   mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
-  select(antigenf,agem_start_under6, control, azithro, diff_ci, intP)
+  select(antigenf,agem_start_under6, placebo, azithro, diff_ci, intP)
 
 knitr::kable(mu_serop_table,
              col.names = c("Pathogen, antigen","<= 6 months at trial start", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 

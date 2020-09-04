@@ -141,10 +141,10 @@ d_serop <- d2 %>%
 n_mfi <- d2 %>%
   group_by(pathogen,antigenf,arm) %>%
   mutate(nomiss = ifelse(!is.na(logmfi),1,0)) %>%
-  summarize(nobs = sum(nomiss)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = nobs) %>%
-  rename(control_n = sun,
-         azithro_n = moon)
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
 
 
 #-----------------------------
@@ -153,11 +153,9 @@ n_mfi <- d2 %>%
 #-----------------------------
 mu_mfi <- d2 %>%
   group_by(pathogen,antigenf,arm) %>%
-  summarize(mean_mfi = mean(logmfi)) %>%
+  summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_mfi) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control)
+  mutate(diff = azithro - placebo)
 
 #-----------------------------
 # merge means onto the Ns
@@ -186,9 +184,7 @@ mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   group_by(antigenf,arm) %>%
   summarize(mean_mfi = mean(logmfi), .groups = "keep") %>%
   pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_mfi) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control, 
+  mutate(diff = azithro - placebo, 
          bootrep = bi)
   
 }
@@ -202,8 +198,8 @@ mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 #-----------------------------
 mu_mfi_ci <- mu_mfi_boot %>%
   group_by(antigenf) %>%
-  mutate(mean_c_lb = quantile(control, probs = 0.025),
-         mean_c_ub = quantile(control, probs = 0.975),
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
          mean_a_lb = quantile(azithro, probs = 0.025),
          mean_a_ub = quantile(azithro, probs = 0.975),
          diff_bmean = mean(diff),
@@ -248,7 +244,7 @@ mu_mfi_table <- mu_mfi2 %>%
   ungroup() %>%
   left_join(permute_mfi, by = "antigenf") %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
-  select(antigenf, control, azithro, diff_ci, permute_p)
+  select(antigenf, placebo, azithro, diff_ci, permute_p)
 
 knitr::kable(mu_mfi_table,
              col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*"), 
@@ -278,16 +274,16 @@ d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
                        mean = rep(3.5,2))
 
 # format the output for plotting
-mu_mfi_control <- mu_mfi2 %>%
+mu_mfi_placebo <- mu_mfi2 %>%
   ungroup() %>%
-  select(pathogen,antigenf,mean = control, mean_lb = mean_c_lb, mean_ub = mean_c_ub) %>%
+  select(pathogen,antigenf,mean = placebo, mean_lb = mean_p_lb, mean_ub = mean_p_ub) %>%
   mutate(arm = "placebo")
 mu_mfi_azithro <- mu_mfi2 %>%
   ungroup() %>%
   select(pathogen,antigenf,mean = azithro, mean_lb = mean_a_lb, mean_ub = mean_a_ub) %>%
   mutate(arm = "azithromycin")
 
-mu_mfi_plot <- bind_rows(mu_mfi_control,mu_mfi_azithro) %>%
+mu_mfi_plot <- bind_rows(mu_mfi_placebo,mu_mfi_azithro) %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf)))) %>%
   arrange(antigenf)
 mu_mfi_plot$group = "enterics\nand\nstrep"
@@ -370,8 +366,8 @@ n_serop <- d_serop %>%
   mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
   summarize(nobs = sum(nomiss), .groups = "keep") %>%
   pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = nobs) %>%
-  rename(control_n = sun,
-         azithro_n = moon)
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
 
 #-----------------------------
 # estimate seroprevalence by arm
@@ -381,9 +377,7 @@ mu_serop <- d_serop %>%
   group_by(pathogen,antigenf,arm) %>%
   summarize(mean_serop = mean(seropos)) %>%
   pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_serop) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control)
+  mutate(diff = azithro - placebo)
 
 #-----------------------------
 # merge means onto the Ns
@@ -413,9 +407,7 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   group_by(antigenf,arm) %>%
   summarize(mean_serop = mean(seropos), .groups = "keep") %>%
   pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_serop) %>%
-  rename(control = sun,
-         azithro = moon) %>%
-  mutate(diff = azithro - control, 
+  mutate(diff = azithro - placebo, 
          bootrep = bi)
 
 }
@@ -430,8 +422,8 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 #-----------------------------
 mu_serop_ci <- mu_serop_boot %>%
   group_by(antigenf) %>%
-  mutate(mean_c_lb = quantile(control, probs = 0.025),
-         mean_c_ub = quantile(control, probs = 0.975),
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
          mean_a_lb = quantile(azithro, probs = 0.025),
          mean_a_ub = quantile(azithro, probs = 0.975),
          diff_bmean = mean(diff),
@@ -478,7 +470,7 @@ mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   left_join(permute_serop, by = "antigenf") %>%
   mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
-  select(antigenf,control, azithro, diff_ci, permute_p)
+  select(antigenf,placebo, azithro, diff_ci, permute_p)
 
 knitr::kable(mu_serop_table,
              col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
@@ -510,16 +502,16 @@ d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
                        mean = rep(0.85,2))
 
 # format the output for plotting
-mu_serop_control <- mu_serop2 %>%
+mu_serop_placebo <- mu_serop2 %>%
   ungroup() %>%
-  select(pathogen,antigenf,mean = control, mean_lb = mean_c_lb, mean_ub = mean_c_ub) %>%
+  select(pathogen,antigenf,mean = placebo, mean_lb = mean_p_lb, mean_ub = mean_p_ub) %>%
   mutate(arm = "placebo")
 mu_serop_azithro <- mu_serop2 %>%
   ungroup() %>%
   select(pathogen,antigenf,mean = azithro, mean_lb = mean_a_lb, mean_ub = mean_a_ub) %>%
   mutate(arm = "azithromycin")
 
-mu_serop_plot <- bind_rows(mu_serop_control,mu_serop_azithro) %>%
+mu_serop_plot <- bind_rows(mu_serop_placebo,mu_serop_azithro) %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(mu_serop2$antigenf)))) %>%
   arrange(antigenf)
 mu_serop_plot$group = "enterics\nand\nstrep"
@@ -539,7 +531,7 @@ plot_serop_means <- ggplot(data = mu_serop_plot, aes(x = antigenf, color = arm))
   scale_y_continuous(breaks = seq(0,1,by=0.2), labels=sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.2,-0.2) ), size = 3, hjust = 1 ) +
-  labs(x = "antigen", y = "seroprevalence (%)\n ", tag = "A") +
+  labs(x = "antigen", y = "seroprevalence (%)\n ", tag = "C") +
   
   # figure layout
   coord_flip(ylim=c(0,1)) +
@@ -572,7 +564,7 @@ plot_serop_diff <- ggplot(data = mu_serop_plot2, aes(x = antigenf, y = diff)) +
   geom_point(alpha=0.6) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = seq(-0.15,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.15,0.1,by=0.05)*100)) +
-  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "B") +
+  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "D") +
   coord_flip() +
   # theme_minimal() +
   theme(
@@ -648,8 +640,8 @@ foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
     gsum <- summary(gfit)
     # estimate average seroconversion rate by arm
     # use a parametric bootstrap of the posterior VCOV matrix to get inference
-    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "sun", dummy=0, clusteridf = "C1")
-    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "moon", dummy=0, clusteridf = "C1")
+    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "placebo", dummy=0, clusteridf = "C1")
+    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "azithro", dummy=0, clusteridf = "C1")
     lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
     lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
     # estimate HR and 95% CI from the model from the model 
@@ -710,7 +702,7 @@ d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
                        mean = rep(2.75,2))
 
 # format the output for plotting
-mu_scr_control <- foi_ests %>%
+mu_scr_placebo <- foi_ests %>%
   ungroup() %>%
   select(antigenf,mean = lambda0, mean_lb = lambda0_min95, mean_ub = lambda0_max95) %>%
   mutate(arm = "placebo")
@@ -719,7 +711,7 @@ mu_scr_azithro <- foi_ests %>%
   select(antigenf,mean = lambda1, mean_lb = lambda1_min95, mean_ub = lambda1_max95) %>%
   mutate(arm = "azithromycin")
 
-mu_scr_plot <- bind_rows(mu_scr_control,mu_scr_azithro) %>%
+mu_scr_plot <- bind_rows(mu_scr_placebo,mu_scr_azithro) %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(d_foi$antigenf)))) %>%
   arrange(antigenf)
 mu_scr_plot$group = "enterics\nand\nstrep"

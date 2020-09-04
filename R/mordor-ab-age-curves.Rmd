@@ -102,8 +102,8 @@ d_enteric_comps <- d2 %>%
 # for clusterid (for model)
 #-----------------------------
 d3 <- d2 %>%
-  mutate(tr0 = ifelse(arm == "sun",1,0),
-         tr1 = ifelse(arm == "moon",1,0),
+  mutate(tr0 = ifelse(arm == "placebo",1,0),
+         tr1 = ifelse(arm == "azithro",1,0),
          dummy = 1,
          clusteridf = factor(clusterid)
          )
@@ -122,8 +122,8 @@ fit_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
                          arm +
                          s(clusteridf,bs="re",by=dummy), 
                        data=di)
-  newd0 <- di %>%  mutate(dummy=0, arm = "sun")
-  newd1 <- di %>%  mutate(dummy=0, arm = "moon")
+  newd0 <- di %>%  mutate(dummy=0, arm = "placebo")
+  newd1 <- di %>%  mutate(dummy=0, arm = "azithro")
   fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
   fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
   fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
@@ -131,7 +131,7 @@ fit_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
 }
 
 fit_age2 <- fit_age %>%
-  mutate(arm = factor(arm,levels = c("sun","moon")))
+  mutate(arm = factor(arm,levels = c("placebo","azithro")))
 
 
 ```
@@ -154,8 +154,8 @@ fitp_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
                          s(clusteridf,bs="re",by=dummy), 
                        family = binomial(link="cloglog"),
                        data=di)
-  newd0 <- di %>%  mutate(dummy=0, arm = "sun")
-  newd1 <- di %>%  mutate(dummy=0, arm = "moon")
+  newd0 <- di %>%  mutate(dummy=0, arm = "placebo")
+  newd1 <- di %>%  mutate(dummy=0, arm = "azithro")
   fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
   fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
   fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
@@ -164,7 +164,7 @@ fitp_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
 
 # convert linear predictor to prevalance
 fitp_age2 <- fitp_age %>%
-  mutate(arm = factor(arm,levels = c("sun","moon"))) %>%
+  mutate(arm = factor(arm,levels = c("placebo","azithro"))) %>%
   mutate(fit = cloglogfn(fit),
          uprP = cloglogfn(uprP),
          lwrP = cloglogfn(lwrP),
@@ -185,8 +185,8 @@ Repeat for composite seropositivity measures for enterics
 #----------------------------------------
 d_enteric_comps2 <- d_enteric_comps %>%
   ungroup() %>%
-  mutate(tr0 = ifelse(arm == "sun",1,0),
-         tr1 = ifelse(arm == "moon",1,0),
+  mutate(tr0 = ifelse(arm == "placebo",1,0),
+         tr1 = ifelse(arm == "azithro",1,0),
          dummy = 1,
          clusteridf = factor(clusterid),
          antigenf = droplevels(antigenf)
@@ -200,8 +200,8 @@ fitp_comp_age <- foreach(abi = levels(d_enteric_comps2$antigenf), .combine = rbi
                          s(clusteridf,bs="re",by=dummy), 
                        family = binomial(link = "cloglog"),
                        data=di)
-  newd0 <- di %>%  mutate(dummy=0, arm = "sun")
-  newd1 <- di %>%  mutate(dummy=0, arm = "moon")
+  newd0 <- di %>%  mutate(dummy=0, arm = "placebo")
+  newd1 <- di %>%  mutate(dummy=0, arm = "azithro")
   fit_tr0_ci <- gamCI(m=fit_age,newdata=newd0,nreps=1000)
   fit_tr1_ci <- gamCI(m=fit_age,newdata=newd1,nreps=1000)
   fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
@@ -210,7 +210,7 @@ fitp_comp_age <- foreach(abi = levels(d_enteric_comps2$antigenf), .combine = rbi
 
 # convert linear predictor to prevalance
 fitp_comp_age2 <- fitp_comp_age %>%
-  mutate(arm = factor(arm,levels = c("sun","moon"))) %>%
+  mutate(arm = factor(arm,levels = c("placebo","azithro"))) %>%
   mutate(fit = cloglogfn(fit),
          uprP = cloglogfn(uprP),
          lwrP = cloglogfn(lwrP),
@@ -268,8 +268,8 @@ fit_foi_age <- foreach(abi = levels(d_foi$antigenf), .combine = rbind) %do% {
                        data=di)
   
   # estimate average seroconversion rate by arm
-  newd0 <- data.frame(antigenf = abi, agem=seq(min(di$agem),max(di$agem),by=0.01), dummy=0,clusteridf="C1",arm = "sun")
-  newd1 <- data.frame(antigenf = abi, agem=seq(min(di$agem),max(di$agem),by=0.01), dummy=0,clusteridf="C1",arm = "moon")
+  newd0 <- data.frame(antigenf = abi, agem=seq(min(di$agem),max(di$agem),by=0.01), dummy=0,clusteridf="C1",arm = "placebo")
+  newd1 <- data.frame(antigenf = abi, agem=seq(min(di$agem),max(di$agem),by=0.01), dummy=0,clusteridf="C1",arm = "azithro")
   foi_tr0_ci <- foiCI(m=fit_age,newdata=newd0,fdvar="agem",nreps=1000)
   foi_tr1_ci <- foiCI(m=fit_age,newdata=newd1,fdvar="agem",nreps=1000)
   foi_ci <- bind_rows(foi_tr0_ci,foi_tr1_ci)
@@ -304,8 +304,8 @@ fit_foi_comp_age <- foreach(abi = levels(d_foi_comp$antigenf), .combine = rbind)
                        data=di)
   
   # estimate average seroconversion rate by arm
-  newd0 <- data.frame(antigenf = abi, agem=seq(min(di$agem[di$estfoi==1]),max(di$agem[di$estfoi==1]),by=0.01), dummy=0,estfoi=1,clusteridf="C1",arm = "sun")
-  newd1 <- data.frame(antigenf = abi, agem=seq(min(di$agem[di$estfoi==1]),max(di$agem[di$estfoi==1]),by=0.01), dummy=0,estfoi=1,clusteridf="C1",arm = "moon")
+  newd0 <- data.frame(antigenf = abi, agem=seq(min(di$agem[di$estfoi==1]),max(di$agem[di$estfoi==1]),by=0.01), dummy=0,estfoi=1,clusteridf="C1",arm = "placebo")
+  newd1 <- data.frame(antigenf = abi, agem=seq(min(di$agem[di$estfoi==1]),max(di$agem[di$estfoi==1]),by=0.01), dummy=0,estfoi=1,clusteridf="C1",arm = "azithro")
   foi_tr0_ci <- foiCI(m=fit_age,newdata=newd0,fdvar="agem",nreps=1000)
   foi_tr1_ci <- foiCI(m=fit_age,newdata=newd1,fdvar="agem",nreps=1000)
   foi_ci <- bind_rows(foi_tr0_ci,foi_tr1_ci)
@@ -348,7 +348,7 @@ pplabs <- fit_age_enterics %>%
          ) %>%
   mutate(minX = 6, 
          maxX = ifelse(antigenf %in% c("Salmonella LPS B", "Salmonella LPS D","Streptococcus A"),60,24),
-         arm = "sun"
+         arm = "placebo"
          )
 
 # custom log labels
@@ -359,8 +359,8 @@ log10labs <- c(
   expression(10^3),
   expression(10^4)
 )
-pcols <- c(vircols[3],cbpal[2])
-# pcols <- vircols[c(3,6)]
+pcols <- c(cbpal[2],vircols[3])
+
 plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen and antigen
   facet_grid(pathogen~antigenn, drop = TRUE) +
@@ -412,7 +412,8 @@ fitp_enterics <- fitp_age2 %>%
 d_shade_box <- data.frame(antigenf = levels(fitp_enterics$antigenf)) %>%
   mutate(minX = 6, 
          maxX = ifelse(antigenf %in% c("Salmonella LPS B or D","Streptococcus A"),60,24),
-         arm = "sun"
+         arm = "placebo",
+         antigenf = factor(antigenf,levels(fitp_enterics$antigenf))
          )
 
 # labels for the panels in the plot 
@@ -421,7 +422,7 @@ pplabs2 <- fitp_enterics %>%
   select(pathogen, antigenf, arm) %>%
   slice(1)
 
-pcols <- c(vircols[3],cbpal[2])
+pcols <- c(cbpal[2],vircols[3])
 plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
   facet_grid(antigenf~.) +
@@ -476,9 +477,11 @@ Seroconversion rate figure. Use composite estimates for pathogens with multiple 
 foip_enterics <- fit_foi_age %>%
   filter(antigenf %in% c("ETEC LTB","Cholera CTB","Streptococcus A")) %>%
   bind_rows(fit_foi_comp_age) %>%
-  mutate(antigenf = factor(antigenf,levels = c(levels(d_foi_comp$antigenf)[1],"ETEC LTB","Cholera CTB",levels(d_foi_comp$antigenf)[2:4],"Streptococcus A")))
+  mutate(antigenf = factor(antigenf,levels = c(levels(d_foi_comp$antigenf)[1],"ETEC LTB","Cholera CTB",levels(d_foi_comp$antigenf)[2:4],"Streptococcus A")),
+         arm = factor(arm, levels = c("placebo","azithro"))
+         )
 
-pcols <- c(vircols[3],cbpal[2])
+pcols <- c(cbpal[2],vircols[3])
 plot_age_foi_enterics <- ggplot(data = foip_enterics , aes(x = agem, y = 12*foi, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
   facet_grid(antigenf~., scales = "free_y") +
@@ -528,7 +531,8 @@ fit_age_malaria <- fit_age2 %>%
 d_shade_box <- data.frame(antigenf = levels(fit_age_malaria$antigenf)) %>%
   mutate(minX = 12, 
          maxX = 60,
-         arm = "sun"
+         arm = "placebo",
+         antigenf = factor(antigenf,levels(fit_age_malaria$antigenf))
          )
 
 # custom log labels
@@ -539,7 +543,7 @@ log10labs <- c(
   expression(10^3),
   expression(10^4)
 )
-pcols <- c(vircols[3],cbpal[2])
+pcols <- c(cbpal[2],vircols[3])
 
 plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen and antigen
@@ -588,10 +592,11 @@ fitp_malaria<- fitp_age2 %>%
 d_shade_box <- data.frame(antigenf = levels(fitp_malaria$antigenf)) %>%
   mutate(minX = 12, 
          maxX = 60,
-         arm = "sun"
+         arm = "placebo",
+         antigenf = factor(antigenf,levels(fitp_malaria$antigenf))
          )
 
-pcols <- c(vircols[3],cbpal[2])
+pcols <- c(cbpal[2],vircols[3])
 
 plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
@@ -641,10 +646,12 @@ Seroconversion rate figure.
 #-----------------------------
 foip_malaria <- fit_foi_age %>%
   mutate(antigenf = factor(antigenf,levels = levels(d_foi$antigenf)[12:20])) %>%
-  filter(!is.na(antigenf))
+  filter(!is.na(antigenf)) %>%
+  mutate(arm = factor(arm, levels = c("placebo","azithro")))
   
 
-pcols <- c(vircols[3],cbpal[2])
+pcols <- c(cbpal[2],vircols[3])
+
 plot_age_foi_malaria <- ggplot(data = foip_malaria , aes(x = agem, y = 12*foi, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
   facet_grid(antigenf~., scales = "free_y") +
