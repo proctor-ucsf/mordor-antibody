@@ -371,7 +371,9 @@ d4 <- d4 %>%
 
 Re-randomize community assignments. The morbidity file includes masked assignments (sun, moon) but they are not re-randomized. Save the real assignments on the side and use re-randomized labels until the main analyses are all finished. Then, we will unmask by updating this script to merge in the real assignments.
 
-```{r re-randomize community assignments}
+As of September 3, 2020, this code is no longer evaluated. The analysis was unmasked 2020-09-03 at 16:45.
+
+```{r re-randomize community assignments, eval = FALSE}
 #-------------------------------
 # store the real treatment
 # assignments, put to the side
@@ -400,6 +402,14 @@ d5 <- d4 %>%
   select(-arm) %>%
   left_join(comd_rr,by="clusterid") %>%
   mutate(arm = factor(arm,levels=c("sun","moon")))
+
+```
+
+```{r unmaske community assignments}
+d5 <- d4 %>%
+  mutate(arm = ifelse(arm == "sun", "azithro","placebo"),
+         arm = factor(arm, levels = c("placebo","azithro"))
+         )
 
 ```
 
