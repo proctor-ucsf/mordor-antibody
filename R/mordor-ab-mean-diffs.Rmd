@@ -133,6 +133,7 @@ d_serop <- d2 %>%
 
 # Estimate mean mfi by arm
 
+## Means by arm
 ```{r means by arm}
 #-----------------------------
 # tally number of observations
@@ -163,6 +164,7 @@ mu_mfi <- d2 %>%
 mu_mfi <- left_join(n_mfi, mu_mfi, by=c("pathogen","antigenf"))
 ```
 
+## Bootstrap 95% CIs
 ```{r bootstrap mean MFI diff}
 #-----------------------------
 # bootstrap resample communities
@@ -214,6 +216,7 @@ mu_mfi2 <- mu_mfi %>%
   
 ```
 
+## Exact permutation P-values
 ```{r permutation p-values}
 #-----------------------------
 # estimate permutation p-values
@@ -238,6 +241,18 @@ permute_mfi <- foreach(abi = levels(d2$antigenf), .combine = rbind) %do% {
 
 ```
 
+## Benjamini-Hochberg FDR correction
+```{r bh correction MFI}
+#-----------------------------
+# Add Benjamini-Hochberg FDR
+# corrected p-values, nested
+# within enterics and malaria
+#-----------------------------
+bh_p_enterics <- p.adjust(permute_mfi$permute_p[1:11],method = "BH")
+bh_p_malaria <- p.adjust(permute_mfi$permute_p[12:20],method = "BH")
+
+```
+
 ## Enterics MFI summary table
 ```{r MFI means table enterics}
 mu_mfi_table <- mu_mfi2 %>%
@@ -245,16 +260,17 @@ mu_mfi_table <- mu_mfi2 %>%
   left_join(permute_mfi, by = "antigenf") %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
   mutate(permute_p = as.numeric(permute_p)) %>%
-  select(antigenf, placebo, azithro, diff_ci, permute_p)
+  select(antigenf, placebo, azithro, diff_ci, permute_p) %>%
+  mutate(bh_p = c(bh_p_enterics,bh_p_malaria))
 
 knitr::kable(mu_mfi_table %>% slice(1:11),
-             col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*"), 
-             digits = 3,
+             col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*","P-value†"), 
+             digits = c(0,3,3,0,2,2),
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
+  add_header_above(c(" " = 1, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
   footnote(
-    symbol=c("Exact permutation P-value.")
+    symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method")
   )
 
 ```
@@ -356,14 +372,12 @@ ggsave(here("figures","mordor-ab-diff-mfi-enterics.png"),plot_mfi_comp_enterics,
 ## Malaria MFI summary table
 ```{r MFI means table malaria}
 knitr::kable(mu_mfi_table %>% slice(12:20),
-             col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*"), 
-             digits = 3,
+             col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*","P-value†"), 
+             digits = c(0,3,3,0,2,2),
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
-  footnote(
-    symbol=c("Exact permutation P-value.")
-  )
+  add_header_above(c(" " = 1, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
+  footnote(symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method"))
 
 ```
 
@@ -436,6 +450,7 @@ ggsave(here("figures","mordor-ab-diff-mfi-malaria.png"),plot_mfi_comp_malaria,de
 # Seroprevalence
 
 
+## Estimate means by arm
 ```{r seroprev by arm}
 
 #-----------------------------
@@ -466,7 +481,7 @@ mu_serop <- d_serop %>%
 mu_serop <- left_join(n_serop, mu_serop, by=c("pathogen","antigenf"))
 ```
 
-
+## Bootstrap 95% CIs
 ```{r bootstrap mean seropos diff}
 #-----------------------------
 # bootstrap resample communities
@@ -494,7 +509,6 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 }
 ```
 
-
 ```{r mean seroprev bootstrap cis}
 #-----------------------------
 # calculate percentile 95%
@@ -519,7 +533,7 @@ mu_serop2 <- mu_serop %>%
   
 ```
 
-
+## Exact permutation p-values
 ```{r permutation p-values seroprev}
 #-----------------------------
 # estimate permutation p-values
@@ -544,6 +558,17 @@ permute_serop <- foreach(abi = levels(d_serop$antigenf), .combine = rbind) %do% 
 
 ```
 
+## Benjamini-Hochberg FDR correction
+```{r bh correction seroprev}
+#-----------------------------
+# Add Benjamini-Hochberg FDR
+# corrected p-values, nested
+# within enterics and malaria
+#-----------------------------
+bh_p_enterics <- p.adjust(permute_serop$permute_p[1:7],method = "BH")
+bh_p_malaria <- p.adjust(permute_serop$permute_p[8:16],method = "BH")
+
+```
 
 ## Enterics seroprevalence table
 ```{r seroprev means table enterics}
@@ -552,16 +577,17 @@ mu_serop_table <- mu_serop2 %>%
   left_join(permute_serop, by = "antigenf") %>%
   mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
   mutate(permute_p = as.numeric(permute_p)) %>%
-  select(antigenf,placebo, azithro, diff_ci, permute_p)
+  select(antigenf,placebo, azithro, diff_ci, permute_p) %>%
+  mutate(bh_p = c(bh_p_enterics,bh_p_malaria))
 
 knitr::kable(mu_serop_table %>% slice(1:7),
-             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
-             digits = c(0,2,2,0,3),
+             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*","P-value†"), 
+             digits = 2,
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
+  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 3)) %>%
   footnote(
-    symbol=c("Exact permutation P-value.")
+    symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method")
   )
 
 ```
@@ -662,13 +688,13 @@ ggsave(here("figures","mordor-ab-diff-seroprev-enterics.png"),plot_serop_comp_en
 ## Malaria seroprevalence table
 ```{r seroprev means table malaria}
 knitr::kable(mu_serop_table %>% slice(8:16),
-             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
-             digits = c(0,2,2,0,3),
+             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*","P-value†"), 
+             digits = 2,
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
+  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 3)) %>%
   footnote(
-    symbol=c("Exact permutation P-value.")
+    symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method")
   )
 
 ```
@@ -766,26 +792,9 @@ The average hazard over the age period $a_1$ to $a_2$ is:
   \int_{a_1}^{a_2} \lambda(a) da = \frac{\log[1-F(a_1)]-\log[1-F(a_2)]}{a_2 - a_1}
 \end{equation}
 
-Limit the force of infection analysis to pathogens with some evidence for seroprevalence > 0.
-
 ```{r FOI  estimates}
 
 d_foi <- d_serop %>%
-  # filter(antigenf %in% c(
-  #   "Campylobacter p18 or p39",
-  #   "ETEC LTB",
-  #   "Cholera CTB",
-  #   "Salmonella LPS B or D",
-  #   "Cryptosporidium Cp17 or Cp23",
-  #   "Giardia VSP-3 or VSP-5",
-  #   "Streptococcus A",
-  #   "P. falciparum MSP-1",
-  #   "P. falciparum AMA",
-  #   "P. falciparum GLURP-Ro",
-  #   "P. falciparum LSA1",
-  #   "P. malariae MSP-1"
-  # )
-  #        ) %>%
   mutate(antigenf = droplevels(antigenf),
          clusteridf = factor(clusterid),
          dummy = 1)
@@ -808,6 +817,7 @@ foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
     # estimate HR and 95% CI from the model from the model 
     hr <- as.numeric(exp(gfit$coefficients[2]))
     loghr_se <-as.numeric(gsum$se[2])
+    hr_p <- as.numeric(gsum$p.pv[2])
     # return the results
     res <- data.frame(antigenf = ab,
                       lambda0 = lambda0$mufoi,
@@ -821,9 +831,22 @@ foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
                       hr = hr, 
                       loghr_se = loghr_se,
                       hr_min95 = exp(log(hr) - 1.96*loghr_se),
-                      hr_max95 = exp(log(hr) + 1.96*loghr_se)
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se),
+                      hr_p = hr_p
                       )
 }
+```
+
+## Benjamini-Hochberg FDR correction
+```{r bh correction FOI}
+#-----------------------------
+# Add Benjamini-Hochberg FDR
+# corrected p-values, nested
+# within enterics and malaria
+#-----------------------------
+bh_p_enterics <- p.adjust(foi_ests$hr_p[1:7],method = "BH")
+bh_p_malaria <- p.adjust(foi_ests$hr_p[8:16],method = "BH")
+
 ```
 
 ## Enterics FOI table
@@ -839,14 +862,16 @@ foi_ests_tab <- foi_ests %>%
          hrc = paste0(sprintf("%1.2f",hr)," (",
                        sprintf("%1.2f",hr_min95),", ",
                        sprintf("%1.2f",hr_max95),")")
-         )
+         ) %>%
+  mutate(bh_p = c(bh_p_enterics, bh_p_malaria))
 
-knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc) %>% slice(1:7),digits=3,
+knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %>% slice(1:7),digits=3,
              caption="Average seroconversion rate (SCR) per year estimated from age-structured seroprevalence",
-             align = "lccc",
-             col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)"),
+             align = "lcccc",
+             col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)","P-value*","P-value†"),
              row.names = FALSE)  %>%
-  kable_styling(bootstrap_options = "striped",full_width = TRUE)
+  kable_styling(bootstrap_options = "striped",full_width = TRUE) %>%
+  footnote(symbol = c("P-value from proportional hazards model","P-value with false discovery rate correction using the Benjamini-Hochberg method"))
 
 ```
 
@@ -950,12 +975,13 @@ ggsave(here("figures","mordor-ab-scr-hr-enterics.png"),plot_scr_comp,device = "p
 
 ## Malaria FOI table
 ```{r foi table of results malaria}
-knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc) %>% slice(8:16),digits=3,
+knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %>% slice(8:16),digits=3,
              caption="Average seroconversion rate (SCR) per year estimated from age-structured seroprevalence",
-             align = "lccc",
-             col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)"),
+             align = "lcccc",
+             col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)","P-value*","P-value†"),
              row.names = FALSE)  %>%
-  kable_styling(bootstrap_options = "striped",full_width = TRUE)
+  kable_styling(bootstrap_options = "striped",full_width = TRUE) %>%
+  footnote(symbol = c("P-value from proportional hazards model","P-value with false discovery rate correction using the Benjamini-Hochberg method"))
 
 ```
 
