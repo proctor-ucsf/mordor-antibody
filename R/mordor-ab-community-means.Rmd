@@ -1,0 +1,278 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Community level summaries"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Summarize antibody responses at the community level
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+#-------------------------------
+# drop the trachoma, strongyloides, 
+# and GST negative control values
+#-------------------------------
+d2 <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# drop baseline measurements
+#-------------------------------
+d2 <- d2 %>%
+  filter(phase > 0)
+
+
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages without any
+# variation in antibody levels
+# (esp. enterics, which become saturated)
+#
+# Enterics: 6 mo - 24
+# (except for salmonella, strep A)
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+d2 <- d2 %>%
+  filter(agem >= 6) %>%
+  mutate(agedrop = case_when(
+    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+    TRUE ~ 0
+  )
+         ) %>%
+  filter(agedrop == 0)
+
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+Then bind those to the original data frame to create a seropositivity dataset for analyses.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- d2 %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phase) %>%
+  mutate(seropos = max(seropos)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  )) %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
+
+
+```
+
+```{r create seropositivity dataset, warning=FALSE}
+d_serop <- d2 %>%
+  # drop pathogens w/ composite indicators
+  filter(!pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  # add composite indicators
+  bind_rows(d_enteric_comps) %>%
+  # create new factor levels that includes composite indicators
+  mutate(antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Cholera CTB",
+    "Salmonella LPS B or D",
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+   levels(d2$antigenf)[11:20]) )
+         ) %>%
+  # drop extra variables (MFI doesn't correspond to composite seropos so drop)
+  select(-mfi,-logmfi,-agedrop)
+
+```
+
+# Seroprevalence
+
+## Estimate seroprevalence by community
+```{r seroprev by community}
+
+#-----------------------------
+# count N and estimate 
+# seroprevalence by community
+# averaged over all post-tr
+# phases
+#-----------------------------
+mu_serop <- d_serop %>%
+  group_by(pathogen,antigenf,clusterid,arm) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss), 
+            npos = sum(seropos),
+            seroprev = mean(seropos),
+            .groups = "keep") 
+#-----------------------------
+# estimate exact binomial
+# 95% CIs for community means
+#-----------------------------
+# estimate exact binomial CIs for prevalence
+mu_serop <- mu_serop %>% 
+  rowwise() %>% 
+  mutate(seroprev_ci = list(enframe(binom.test(x=npos, n=nobs, alternative =  "two.sided", conf.level = 0.95)$conf.int))) %>% 
+    unnest(seroprev_ci) %>% 
+    spread(name, value) %>% 
+    rename("seroprev_lb" = "1", "seroprev_ub" = "2")
+
+```
+
+## Heatmap of seroprevalence by community
+
+```{r seroprev heatmap}
+
+# sort clusters by mean seroprev across all antigens
+cl_rank <- mu_serop %>%
+  group_by(clusterid) %>%
+  summarize(mean_serop = mean(seroprev), .groups = "keep") %>%
+  slice(1) %>%
+  arrange(mean_serop) %>%
+  ungroup() %>%
+  mutate(clrank = row_number(),
+         clrankf = factor(clrank))
+
+plot_mu_serop <- mu_serop %>%
+  left_join(cl_rank,by="clusterid") %>%
+  mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep")) %>%
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+
+
+#----------------------------------
+# make a heatmap of all antigens
+# inspiration: http://www.roymfrancis.com/a-guide-to-elegant-tiled-heatmaps-in-r/
+#----------------------------------
+#define a colour for fonts
+textcol <- "grey20"
+p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
+  #facet over village
+  facet_grid(group~arm,scales='free',space='free',switch="y")+
+  
+  #add border white colour of line thickness 0.25
+  geom_tile(colour="white",size=0.25)+
+  #remove y axis labels, 
+  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  #remove extra space
+  scale_y_discrete(expand=c(0,0),position="right")+
+  scale_x_discrete(expand=c(0,0))+
+  # scale_x_discrete(expand=c(0,0),
+  #                  breaks=1:9,labels=1:9)+
+  #change the scale_fill_manual
+  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+                       direction=0,
+                       guide=guide_colorbar(title="sero-\nprev (%)",face='bold'))+
+  # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
+  #one unit on x-axis is equal to one unit on y-axis.
+  #equal aspect ratio x and y axis
+  # coord_equal()+
+  #set base size for all font elements
+  theme_grey(base_size=10)+
+  #theme options
+  theme(
+    
+    legend.title=element_text(color=textcol,size=8),
+    legend.position = "left",
+    #change legend text properties
+    legend.text=element_text(colour=textcol,size=7,face="plain"),
+    #change legend key height
+    legend.key.height=grid::unit(0.8,"cm"),
+    #set a slim legend
+    legend.key.width=grid::unit(0.4,"cm"),
+    
+    #set remove x axis ticks
+    axis.title.x=element_text(hjust=0),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    #set y axis text colour and adjust vertical justification
+    axis.text.y=element_text(size=10,vjust = 0.2,colour=textcol),
+    #change axis ticks thickness
+    axis.ticks=element_line(size=0.4),
+    
+    #change title font, size, colour and justification
+    plot.title=element_text(colour=textcol,hjust=0,size=12,face="bold"),
+    #adjust facet labels
+    strip.text.x = element_text(size=10),
+    strip.text.y = element_text(size=8),
+    #remove plot background
+    plot.background=element_blank(),
+    #remove plot border
+    panel.border=element_blank(),
+    #remove plot margins
+    # plot.margin=margin(grid::unit(1,"cm"))
+  )
+p
+
+
+
+```
+
+## Cluster level seroprevalence
+
+```{r plot seroprev by community, fig.width = 8, fig.height = 10}
+pcols <- c(cbpal[2],vircols[3])
+p_comm <- ggplot(data = mu_serop, aes(x = arm, y = seroprev, color = arm)) +
+  facet_wrap(~antigenf, ncol = 4) +
+  geom_jitter(width = 0.1, alpha = 0.5) +
+  geom_boxplot(color = "gray40",fill = NA, outlier.shape = NA, width = 0.5) +
+  scale_y_continuous(breaks=seq(0,1,by=0.2),labels=sprintf("%1.0f",100*seq(0,1,by=0.2)))+
+  scale_color_manual(values = pcols) +
+  labs(x = NULL, y = "community-level seroprevalence (%)") +
+  theme(
+    legend.position = "none"
+  )
+
+p_comm
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
