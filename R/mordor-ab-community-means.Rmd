@@ -131,10 +131,10 @@ d_serop <- d2 %>%
 
 ```
 
-# Seroprevalence
+# IgG levels (MFI)
 
-## Estimate seroprevalence by community
-```{r seroprev by community}
+## Estimate MFI by community
+```{r mfi by community}
 
 #-----------------------------
 # count N and estimate 
@@ -142,44 +142,40 @@ d_serop <- d2 %>%
 # averaged over all post-tr
 # phases
 #-----------------------------
-mu_serop <- d_serop %>%
+mu_mfi <- d2 %>%
   group_by(pathogen,antigenf,clusterid,arm) %>%
-  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  mutate(nomiss = ifelse(!is.na(logmfi),1,0)) %>%
   summarize(nobs = sum(nomiss), 
-            npos = sum(seropos),
-            seroprev = mean(seropos),
-            .groups = "keep") 
-#-----------------------------
-# estimate exact binomial
-# 95% CIs for community means
-#-----------------------------
-# estimate exact binomial CIs for prevalence
-mu_serop <- mu_serop %>% 
-  rowwise() %>% 
-  mutate(seroprev_ci = list(enframe(binom.test(x=npos, n=nobs, alternative =  "two.sided", conf.level = 0.95)$conf.int))) %>% 
-    unnest(seroprev_ci) %>% 
-    spread(name, value) %>% 
-    rename("seroprev_lb" = "1", "seroprev_ub" = "2")
+            mulogmfi = mean(logmfi),
+            sdlogmfi = sd(logmfi),
+            selogmfi = sdlogmfi/sqrt(nobs),
+            mulogmfi_lb = mulogmfi - 1.96*selogmfi,
+            mulogmfi_ub = mulogmfi + 1.96*selogmfi,
+            .groups = "keep") %>%
+  # identify malaria antigens vs others
+    mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep"))
 
 ```
 
-## Heatmap of seroprevalence by community
 
-```{r seroprev heatmap}
+## Heatmaps of MFI by community
+
+```{r mfi heatmap enterics}
 
 # sort clusters by mean seroprev across all antigens
-cl_rank <- mu_serop %>%
+cl_rank <- mu_mfi %>%
+  filter(group != "malaria") %>%
   group_by(clusterid) %>%
-  summarize(mean_serop = mean(seroprev), .groups = "keep") %>%
+  summarize(mean_mfi = mean(mulogmfi), .groups = "keep") %>%
   slice(1) %>%
-  arrange(mean_serop) %>%
+  arrange(mean_mfi) %>%
   ungroup() %>%
   mutate(clrank = row_number(),
          clrankf = factor(clrank))
 
-plot_mu_serop <- mu_serop %>%
+plot_mu_mfi <- mu_mfi %>%
+  filter(group != "malaria") %>%
   left_join(cl_rank,by="clusterid") %>%
-  mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep")) %>%
   mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
 
 
@@ -189,9 +185,9 @@ plot_mu_serop <- mu_serop %>%
 #----------------------------------
 #define a colour for fonts
 textcol <- "grey20"
-p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
+p <- ggplot(plot_mu_mfi,aes(x=clrankf,y=antigenf,fill=mulogmfi)) +
   #facet over village
-  facet_grid(group~arm,scales='free',space='free',switch="y")+
+  facet_grid(.~arm,scales='free',space='free',switch="y")+
   
   #add border white colour of line thickness 0.25
   geom_tile(colour="white",size=0.25)+
@@ -205,7 +201,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   #change the scale_fill_manual
   scale_fill_distiller(palette="YlGnBu",na.value="grey90",
                        direction=0,
-                       guide=guide_colorbar(title="sero-\nprev (%)",face='bold'))+
+                       guide=guide_colorbar(title="log10 MFI-bg",face='bold'))+
   # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
   #one unit on x-axis is equal to one unit on y-axis.
   #equal aspect ratio x and y axis
@@ -247,26 +243,361 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   )
 p
 
+```
+
+
+```{r mfi heatmap malaria}
+
+# sort clusters by mean seroprev across all antigens
+cl_rank <- mu_mfi %>%
+  filter(group == "malaria") %>%
+  group_by(clusterid) %>%
+  summarize(mean_mfi = mean(mulogmfi), .groups = "keep") %>%
+  slice(1) %>%
+  arrange(mean_mfi) %>%
+  ungroup() %>%
+  mutate(clrank = row_number(),
+         clrankf = factor(clrank))
+
+plot_mu_mfi <- mu_mfi %>%
+  filter(group == "malaria") %>%
+  left_join(cl_rank,by="clusterid") %>%
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+
+
+#----------------------------------
+# make a heatmap of all antigens
+# inspiration: http://www.roymfrancis.com/a-guide-to-elegant-tiled-heatmaps-in-r/
+#----------------------------------
+#define a colour for fonts
+textcol <- "grey20"
+p <- ggplot(plot_mu_mfi,aes(x=clrankf,y=antigenf,fill=mulogmfi)) +
+  #facet over village
+  facet_grid(.~arm,scales='free',space='free',switch="y")+
+  
+  #add border white colour of line thickness 0.25
+  geom_tile(colour="white",size=0.25)+
+  #remove y axis labels, 
+  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  #remove extra space
+  scale_y_discrete(expand=c(0,0),position="right")+
+  scale_x_discrete(expand=c(0,0))+
+  # scale_x_discrete(expand=c(0,0),
+  #                  breaks=1:9,labels=1:9)+
+  #change the scale_fill_manual
+  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+                       direction=0,
+                       guide=guide_colorbar(title="log10 MFI-bg",face='bold'))+
+  # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
+  #one unit on x-axis is equal to one unit on y-axis.
+  #equal aspect ratio x and y axis
+  # coord_equal()+
+  #set base size for all font elements
+  theme_grey(base_size=10)+
+  #theme options
+  theme(
+    
+    legend.title=element_text(color=textcol,size=8),
+    legend.position = "left",
+    #change legend text properties
+    legend.text=element_text(colour=textcol,size=7,face="plain"),
+    #change legend key height
+    legend.key.height=grid::unit(0.8,"cm"),
+    #set a slim legend
+    legend.key.width=grid::unit(0.4,"cm"),
+    
+    #set remove x axis ticks
+    axis.title.x=element_text(hjust=0),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    #set y axis text colour and adjust vertical justification
+    axis.text.y=element_text(size=10,vjust = 0.2,colour=textcol),
+    #change axis ticks thickness
+    axis.ticks=element_line(size=0.4),
+    
+    #change title font, size, colour and justification
+    plot.title=element_text(colour=textcol,hjust=0,size=12,face="bold"),
+    #adjust facet labels
+    strip.text.x = element_text(size=10),
+    strip.text.y = element_text(size=8),
+    #remove plot background
+    plot.background=element_blank(),
+    #remove plot border
+    panel.border=element_blank(),
+    #remove plot margins
+    # plot.margin=margin(grid::unit(1,"cm"))
+  )
+p
+
+```
+
+
+# Seroprevalence
+
+## Estimate seroprevalence by community
+```{r seroprev by community}
+
+#-----------------------------
+# count N and estimate 
+# seroprevalence by community
+# averaged over all post-tr
+# phases
+#-----------------------------
+mu_serop <- d_serop %>%
+  group_by(pathogen,antigenf,clusterid,arm) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss), 
+            npos = sum(seropos),
+            seroprev = mean(seropos),
+            .groups = "keep") 
+#-----------------------------
+# estimate exact binomial
+# 95% CIs for community means
+#-----------------------------
+# estimate exact binomial CIs for prevalence
+mu_serop <- mu_serop %>% 
+  rowwise() %>% 
+  mutate(seroprev_ci = list(enframe(binom.test(x=npos, n=nobs, alternative =  "two.sided", conf.level = 0.95)$conf.int))) %>% 
+    unnest(seroprev_ci) %>% 
+    spread(name, value) %>% 
+    rename("seroprev_lb" = "1", "seroprev_ub" = "2") %>%
+  # identify malaria antigens vs others
+    mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep"))
+
+```
+
+
+
+
+## Heatmaps of seroprevalence by community
+
+Create a separate heatmap for enterics and malaria since the seroprevalence levels are so different.
+
+```{r seroprev heatmap enterics}
+
+# sort clusters by mean seroprev across all antigens
+cl_rank <- mu_serop %>%
+  filter(group != "malaria") %>%
+  group_by(clusterid) %>%
+  summarize(mean_serop = mean(seroprev), .groups = "keep") %>%
+  slice(1) %>%
+  arrange(mean_serop) %>%
+  ungroup() %>%
+  mutate(clrank = row_number(),
+         clrankf = factor(clrank))
+
+plot_mu_serop <- mu_serop %>%
+  filter(group != "malaria") %>%
+  left_join(cl_rank,by="clusterid") %>%
+  # mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep")) %>%
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+
+
+#----------------------------------
+# make a heatmap of all antigens
+# inspiration: http://www.roymfrancis.com/a-guide-to-elegant-tiled-heatmaps-in-r/
+#----------------------------------
+#define a colour for fonts
+textcol <- "grey20"
+p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
+  #facet over village
+  facet_grid(.~arm,scales='free',space='free',switch="y")+
+  
+  #add border white colour of line thickness 0.25
+  geom_tile(colour="white",size=0.25)+
+  #remove y axis labels, 
+  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  #remove extra space
+  scale_y_discrete(expand=c(0,0),position="right")+
+  scale_x_discrete(expand=c(0,0))+
+  # scale_x_discrete(expand=c(0,0),
+  #                  breaks=1:9,labels=1:9)+
+  #change the scale_fill_manual
+  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+                       direction=0,
+                       guide=guide_colorbar(title="sero-\nprev (%)",face='bold'))+
+  # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
+  #one unit on x-axis is equal to one unit on y-axis.
+  #equal aspect ratio x and y axis
+  # coord_equal()+
+  #set base size for all font elements
+  theme_grey(base_size=10)+
+  #theme options
+  theme(
+    
+    legend.title=element_text(color=textcol,size=8),
+    legend.position = "left",
+    #change legend text properties
+    legend.text=element_text(colour=textcol,size=7,face="plain"),
+    #change legend key height
+    legend.key.height=grid::unit(0.4,"cm"),
+    #set a slim legend
+    legend.key.width=grid::unit(0.4,"cm"),
+    
+    #set remove x axis ticks
+    axis.title.x=element_text(hjust=0, size=8),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    #set y axis text colour and adjust vertical justification
+    axis.text.y=element_text(size=10,vjust = 0.2,colour=textcol),
+    #change axis ticks thickness
+    axis.ticks=element_line(size=0.4),
+    
+    #change title font, size, colour and justification
+    plot.title=element_text(colour=textcol,hjust=0,size=12,face="bold"),
+    #adjust facet labels
+    strip.text.x = element_text(size=10),
+    strip.text.y = element_text(size=8),
+    #remove plot background
+    plot.background=element_blank(),
+    #remove plot border
+    panel.border=element_blank(),
+    #remove plot margins
+    # plot.margin=margin(grid::unit(1,"cm"))
+  )
+p
+
+ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-enterics.png"),p, device = "png", width=6,height=2)
 
 
 ```
 
+```{r seroprev heatmap malaria}
+
+# sort clusters by mean seroprev across all antigens
+cl_rank <- mu_serop %>%
+  filter(group == "malaria") %>%
+  group_by(clusterid) %>%
+  summarize(mean_serop = mean(seroprev), .groups = "keep") %>%
+  slice(1) %>%
+  arrange(mean_serop) %>%
+  ungroup() %>%
+  mutate(clrank = row_number(),
+         clrankf = factor(clrank))
+
+plot_mu_serop <- mu_serop %>%
+  filter(group == "malaria") %>%
+  left_join(cl_rank,by="clusterid") %>%
+  # mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep")) %>%
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+
+
+#----------------------------------
+# make a heatmap of all antigens
+# inspiration: http://www.roymfrancis.com/a-guide-to-elegant-tiled-heatmaps-in-r/
+#----------------------------------
+#define a colour for fonts
+textcol <- "grey20"
+p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
+  #facet over village
+  facet_grid(.~arm,scales='free',space='free',switch="y")+
+  
+  #add border white colour of line thickness 0.25
+  geom_tile(colour="white",size=0.25)+
+  #remove y axis labels, 
+  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  #remove extra space
+  scale_y_discrete(expand=c(0,0),position="right")+
+  scale_x_discrete(expand=c(0,0))+
+  # scale_x_discrete(expand=c(0,0),
+  #                  breaks=1:9,labels=1:9)+
+  #change the scale_fill_manual
+  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+                       direction=0,
+                       guide=guide_colorbar(title="sero-\nprev (%)",face='bold'))+
+  # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
+  #one unit on x-axis is equal to one unit on y-axis.
+  #equal aspect ratio x and y axis
+  # coord_equal()+
+  #set base size for all font elements
+  theme_grey(base_size=10)+
+  #theme options
+  theme(
+    
+    legend.title=element_text(color=textcol,size=8),
+    legend.position = "left",
+    #change legend text properties
+    legend.text=element_text(colour=textcol,size=7,face="plain"),
+    #change legend key height
+    legend.key.height=grid::unit(0.8,"cm"),
+    #set a slim legend
+    legend.key.width=grid::unit(0.4,"cm"),
+    
+    #set remove x axis ticks
+    axis.title.x=element_text(hjust=0,size=8),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    #set y axis text colour and adjust vertical justification
+    axis.text.y=element_text(size=10,vjust = 0.2,colour=textcol),
+    #change axis ticks thickness
+    axis.ticks=element_line(size=0.4),
+    
+    #change title font, size, colour and justification
+    plot.title=element_text(colour=textcol,hjust=0,size=12,face="bold"),
+    #adjust facet labels
+    strip.text.x = element_text(size=10),
+    strip.text.y = element_text(size=8),
+    #remove plot background
+    plot.background=element_blank(),
+    #remove plot border
+    panel.border=element_blank(),
+    #remove plot margins
+    # plot.margin=margin(grid::unit(1,"cm"))
+  )
+p
+
+ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-malaria.png"),p, device = "png", width=6,height=2.5)
+
+
+```
+
+
+
+
 ## Cluster level seroprevalence
 
-```{r plot seroprev by community, fig.width = 8, fig.height = 10}
+Enterics
+
+```{r plot seroprev by community enterics, fig.width = 6, fig.height = 4}
 pcols <- c(cbpal[2],vircols[3])
-p_comm <- ggplot(data = mu_serop, aes(x = arm, y = seroprev, color = arm)) +
-  facet_wrap(~antigenf, ncol = 4) +
+p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" & antigenf != "Streptococcus A"), aes(x = arm, y = seroprev, color = arm)) +
+  facet_wrap(~antigenf, ncol = 3) +
   geom_jitter(width = 0.1, alpha = 0.5) +
   geom_boxplot(color = "gray40",fill = NA, outlier.shape = NA, width = 0.5) +
   scale_y_continuous(breaks=seq(0,1,by=0.2),labels=sprintf("%1.0f",100*seq(0,1,by=0.2)))+
   scale_color_manual(values = pcols) +
+  coord_cartesian(ylim=c(0,1)) +
   labs(x = NULL, y = "community-level seroprevalence (%)") +
   theme(
     legend.position = "none"
   )
 
 p_comm
+
+ggsave(filename = here("figures","mordor-ab-community-seroprev-enterics.png"),p_comm, device = "png", width=6,height=4)
+
+```
+
+Malaria
+
+```{r plot seroprev by community malaria, fig.width = 5, fig.height = 4}
+pcols <- c(cbpal[2],vircols[3])
+p_comm <- ggplot(data = mu_serop %>% filter(group == "malaria"), aes(x = arm, y = seroprev, color = arm)) +
+  facet_wrap(~antigenf, ncol = 3) +
+  geom_jitter(width = 0.1, alpha = 0.5) +
+  geom_boxplot(color = "gray40",fill = NA, outlier.shape = NA, width = 0.5) +
+  scale_y_continuous(breaks=seq(0,1,by=0.2),labels=sprintf("%1.0f",100*seq(0,1,by=0.2)))+
+  scale_color_manual(values = pcols) +
+  coord_cartesian(ylim=c(0,1)) +
+  labs(x = NULL, y = "community-level seroprevalence (%)") +
+  theme(
+    legend.position = "none"
+  )
+
+p_comm
+
+
+ggsave(filename = here("figures","mordor-ab-community-seroprev-malaria.png"),p_comm, device = "png", width=5.5,height=6)
 
 ```
 
