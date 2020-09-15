@@ -52,14 +52,14 @@ d <- read_rds(here("data","mordor-ab-analysis.rds"))
 # drop the trachoma, strongyloides, 
 # and GST negative control values
 #-------------------------------
-d2 <- d %>%
+d1 <- d %>%
   filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
   mutate(antigenf = factor(antigenf))
 
 #-------------------------------
 # drop baseline measurements
 #-------------------------------
-d2 <- d2 %>%
+d2 <- d1 %>%
   filter(phase > 0)
 
 
@@ -128,6 +128,43 @@ d_serop <- d2 %>%
          ) %>%
   # drop extra variables (MFI doesn't correspond to composite seropos so drop)
   dplyr::select(-mfi,-logmfi,-agedrop)
+
+```
+
+# Summarize the number of measurements by phase and arm
+
+Cross-tabulate measurements by phase and arm (and overall)
+
+```{r cross tab of n by arm}
+#-----------------------------
+# summarize total samples
+# analyzed for IgG responses
+# by phase and arm
+#-----------------------------
+d_n <- d1 %>%
+  filter(antigen=="vsp3" & !is.na(logmfi))
+
+dim(d_n)
+table(d_n$phase)
+table(d_n$arm)
+table(d_n$phase,d_n$arm)
+
+
+#-----------------------------
+# summarize samples among 
+# children ages 6-24 months
+#-----------------------------
+d_n2 <- d1 %>%
+  filter(antigen == "vsp3" & !is.na(logmfi)) %>%
+  filter(agem >=6 & agem <=24)
+
+dim(d_n2)
+table(d_n2$phase)
+table(d_n2$arm)
+table(d_n2$phase,d_n2$arm)
+
+dim(d_n2 %>% filter(phase>0))
+table(d_n2$arm[d_n2$phase>0])
 
 ```
 
