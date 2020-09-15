@@ -612,7 +612,7 @@ bh_p_malaria <- p.adjust(permute_serop$permute_p[8:16],method = "BH")
 mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   left_join(permute_serop, by = "antigenf") %>%
-  mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
+  mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
   mutate(permute_p = as.numeric(permute_p)) %>%
   select(antigenf,placebo, azithro, diff_ci, permute_p) %>%
   mutate(bh_p = c(bh_p_enterics,bh_p_malaria))
