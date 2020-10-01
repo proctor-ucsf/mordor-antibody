@@ -118,9 +118,9 @@ d3 <- d2 %>%
 fit_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
   cat("\n Estimating splines for",abi)
   di <- d3 %>% filter(antigenf == abi)
-  fit_age <- mgcv::gam(logmfi ~ s(agem,bs="cr") + 
+  fit_age <- mgcv::gam(logmfi ~ s(agem,bs="cr") +
                          arm +
-                         s(clusteridf,bs="re",by=dummy), 
+                         s(clusteridf,bs="re",by=dummy),
                        data=di)
   newd0 <- di %>%  mutate(dummy=0, arm = "placebo")
   newd1 <- di %>%  mutate(dummy=0, arm = "azithro")
@@ -359,7 +359,7 @@ log10labs <- c(
   expression(10^3),
   expression(10^4)
 )
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
 
 plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen and antigen
@@ -422,7 +422,8 @@ pplabs2 <- fitp_enterics %>%
   select(pathogen, antigenf, arm) %>%
   slice(1)
 
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
+
 plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
   facet_grid(antigenf~.) +
@@ -481,7 +482,7 @@ foip_enterics <- fit_foi_age %>%
          arm = factor(arm, levels = c("placebo","azithro"))
          )
 
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
 plot_age_foi_enterics <- ggplot(data = foip_enterics , aes(x = agem, y = 12*foi, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
   facet_grid(antigenf~., scales = "free_y") +
@@ -543,7 +544,7 @@ log10labs <- c(
   expression(10^3),
   expression(10^4)
 )
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
 
 plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen and antigen
@@ -596,7 +597,7 @@ d_shade_box <- data.frame(antigenf = levels(fitp_malaria$antigenf)) %>%
          antigenf = factor(antigenf,levels(fitp_malaria$antigenf))
          )
 
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
 
 plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
@@ -650,7 +651,7 @@ foip_malaria <- fit_foi_age %>%
   mutate(arm = factor(arm, levels = c("placebo","azithro")))
   
 
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
 
 plot_age_foi_malaria <- ggplot(data = foip_malaria , aes(x = agem, y = 12*foi, group = arm, color = arm, fill = arm)) +
   # facet by pathogen
