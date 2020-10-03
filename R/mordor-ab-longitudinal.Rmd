@@ -752,6 +752,157 @@ Save longitudinal rates by arm for other comparisons
 write_csv(irr_ests,here("data","mordor-ab-longitudinal-irr-ests.csv"))
 ```
 
+
+# Examine incident seroconversions from phase 0 to 6
+
+The only measurements that straddle a wet season in the trial are between baseline (phase 0) and phase 6.   Limit the analysis to children who were measured at both these time points to assess the effect of the azithomycin on incident seroconversions over a wet season.
+
+```{r limit data to phases 0 and 6}
+#-----------------------------
+# limit the dataset to children
+# measured in both phases 0, 6
+#-----------------------------
+dl06 <- dl5 %>%
+  group_by(childid,antigenf) %>%
+  mutate(minphase = min(phase)) %>%
+  filter(minphase == 0 & phase <=6) %>%
+  mutate(phase6 = ifelse(phase==6,1,0),
+         phase6 = max(phase6)) %>%
+  filter(phase6==1)
+
+#-----------------------------
+# summarize number of children
+# by antigen
+#-----------------------------
+table(dl06$antigenf,dl06$phase)
+
+```
+
+## Estimate rates by arm
+
+Estimate prospective incidence rates and incidence rate ratio by arm between phases 0 and 6 (straddling a single wet season)
+
+```{r estimate prospective rates by arm phases 0 and 6}
+#-----------------------------
+# estimate sero-incidence rates
+# for antibody boosting and waning 
+# by arm
+# estimate SEs with a bootstrap
+#-----------------------------
+
+#-----------------------------
+# estimate incidence rates
+# for each antibody
+# units are episodes per child-year
+#-----------------------------
+rate_ests_by_arm <- dl06 %>%
+  group_by(antigenf,arm) %>%
+  summarize(ni=sum(seroi4fold,na.rm=T),
+            nit=sum(ptc,na.rm=T),
+            nr=sum(seror4fold,na.rm=T),
+            nrt=sum(ptr,na.rm=T),
+            .groups = "keep") %>%
+  mutate(seroi=ni/nit,seror=nr/nrt)
+
+#-----------------------------
+# get bootstrap CIs
+# resampling clusters with 
+# replacement due to repeated
+# measures
+#-----------------------------
+dboot <- dl06 %>%
+  group_by(antigenf,arm) %>%
+  select(clusterid,antigenf,arm,seroi4fold,seror4fold,ptc,ptr)
+
+nreps <- 1000
+ids <- unique(dboot$clusterid)
+bsamp <- matrix(sample(ids,size=length(ids)*nreps,replace=TRUE),
+                nrow=length(ids),ncol=nreps)
+bootests <- foreach(ab=levels(dboot$antigenf),.combine=rbind) %:%
+  foreach(brep=1:nreps,.combine=rbind) %dopar% {
+    set.seed(brep)
+    di <- dboot %>% filter(antigenf==ab)
+    di <- left_join(data.frame(clusterid=bsamp[,brep]),di,by=c("clusterid")) %>%
+      select(-clusterid) %>% group_by(antigenf,arm) %>%
+      summarize_all(function(x) sum(x,na.rm=TRUE)) %>%
+      mutate(brep = brep)
+    }
+
+# estimate bootstrap 95% CIs for rates
+rate_cis_by_arm <- bootests %>% 
+  group_by(antigenf,arm) %>%
+  mutate(sero_c = seroi4fold/ptc,
+         sero_r = seror4fold/ptr) %>%
+  # restrict to finite values (some ETEC bootstrap replicates have a denominator of 0)
+  summarize(seroi_lb = quantile(sero_c[is.finite(sero_c)],probs=c(0.025),na.rm=T),
+            seroi_ub = quantile(sero_c[is.finite(sero_c)],probs=c(0.975),na.rm=T),
+            seror_lb = quantile(sero_r[is.finite(sero_r)],probs=c(0.025),na.rm=T),
+            seror_ub = quantile(sero_r[is.finite(sero_r)],probs=c(0.975),na.rm=T), 
+            .groups = "keep"
+            )
+
+rate_ests_by_arm <- left_join(rate_ests_by_arm,rate_cis_by_arm,by=c("antigenf","arm")) %>%
+  select(antigenf,arm,ni,nit,starts_with("seroi"),nr,nrt,starts_with("seror"))
+
+# Estimate bootstrapped 95% CI for IRR
+rate_boot_p <- bootests %>% 
+  filter(arm=="placebo") %>% 
+  select(antigenf, brep,
+         seroi4fold_p = seroi4fold, ptc_p = ptc,
+         seror4fold_p = seror4fold, ptr_p = ptr)
+
+rate_boot_irr <- bootests %>% 
+  filter(arm=="azithro") %>%
+  select(antigenf, brep,
+         seroi4fold_a = seroi4fold, ptc_a = ptc,
+         seror4fold_a = seror4fold, ptr_a = ptr) %>%
+  left_join(rate_boot_p, by = c("antigenf","brep")) %>%
+  mutate(irate_azithro = seroi4fold_a / ptc_a,
+         irate_placebo = seroi4fold_p / ptc_p,
+         rrate_azithro = seror4fold_a / ptr_a,
+         rrate_placebo = seror4fold_p / ptr_p,
+         irri = irate_azithro / irate_placebo,
+         isrr = rrate_azithro / rrate_placebo)
+
+irr_cis <- rate_boot_irr %>%
+  group_by(antigenf) %>%
+  summarize(irr_lb = quantile(irri[is.finite(irri)],probs = c(0.025)),
+            irr_ub = quantile(irri[is.finite(irri)],probs = c(0.975)), 
+            srr_lb = quantile(isrr[is.finite(isrr)],probs = c(0.025)),
+            srr_ub = quantile(isrr[is.finite(isrr)],probs = c(0.975)),
+            .groups = "keep")
+
+irr_ests_p <- rate_ests_by_arm %>%
+  ungroup() %>%
+  filter(arm=="placebo") %>%
+  select(antigenf,ni_p = ni, nit_p = nit, seroi_p = seroi, seroi_lb_p = seroi_lb, seroi_ub_p = seroi_ub, nr_p = nr, nrt_p = nrt, seror_p = seror, seror_lb_p = seror_lb, seror_ub_p = seror_ub)
+irr_ests <- rate_ests_by_arm %>%
+  ungroup() %>%
+  filter(arm == "azithro") %>%
+  select(antigenf, ni_a = ni, nit_a = nit, seroi_a = seroi, seroi_lb_a = seroi_lb, seroi_ub_a = seroi_ub,  nr_a = nr, nrt_a = nrt, seror_a = seror, seror_lb_a = seror_lb, seror_ub_a = seror_ub) %>%
+  left_join(irr_ests_p, by = "antigenf") %>%
+  mutate(irr = seroi_a / seroi_p,
+         srr = seror_a / seror_p) %>%
+  left_join(irr_cis, by = "antigenf")
+
+```
+
+
+## Summary table - seroconversion rates phases 0-6 months
+```{r summary irr table phases 0 and 6}
+
+knitr::kable(irr_ests %>% select(antigenf,ni_a,nit_a,seroi_a,seroi_lb_a,seroi_ub_a,ni_p,nit_p,seroi_p,seroi_lb_p,seroi_ub_p,irr,irr_lb,irr_ub),
+             caption = "Seroconversion rates estimated longitudinally among children in MORDOR Niger, from baseline to the 6-month follow-up.",
+             col.names = c("Pathogen, antigen", "N events","Person-Years","Rate per year","min 95", "max 95","N events","Person-Years","Rate per year","min 95", "max 95", "IRR", "min 95", "max 95"), 
+             digits = 2,
+             align = "lrrcccrrcccccc") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
+  add_header_above(c(" " = 1, "Azithromycin" = 5,  "Placebo" = 5, " " = 3)) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 8) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 8, end_row = 16) 
+
+```
+
 # Session Info
 ```{r session info}
 sessionInfo()
