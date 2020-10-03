@@ -192,14 +192,14 @@ p <- ggplot(plot_mu_mfi,aes(x=clrankf,y=antigenf,fill=mulogmfi)) +
   #add border white colour of line thickness 0.25
   geom_tile(colour="white",size=0.25)+
   #remove y axis labels, 
-  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  labs(x="Columns: communities stratified by arm then sorted by mean seroprevalence",y="",title="")+
   #remove extra space
   scale_y_discrete(expand=c(0,0),position="right")+
   scale_x_discrete(expand=c(0,0))+
   # scale_x_discrete(expand=c(0,0),
   #                  breaks=1:9,labels=1:9)+
   #change the scale_fill_manual
-  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+  scale_fill_distiller(palette="GnBu",na.value="grey90",
                        direction=0,
                        guide=guide_colorbar(title="log10 MFI-bg",face='bold'))+
   # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
@@ -278,14 +278,14 @@ p <- ggplot(plot_mu_mfi,aes(x=clrankf,y=antigenf,fill=mulogmfi)) +
   #add border white colour of line thickness 0.25
   geom_tile(colour="white",size=0.25)+
   #remove y axis labels, 
-  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  labs(x="Columns: communities stratified by arm then sorted by mean seroprevalence",y="",title="")+
   #remove extra space
   scale_y_discrete(expand=c(0,0),position="right")+
   scale_x_discrete(expand=c(0,0))+
   # scale_x_discrete(expand=c(0,0),
   #                  breaks=1:9,labels=1:9)+
   #change the scale_fill_manual
-  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+  scale_fill_distiller(palette="GnBu",na.value="grey90",
                        direction=0,
                        guide=guide_colorbar(title="log10 MFI-bg",face='bold'))+
   # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
@@ -307,7 +307,7 @@ p <- ggplot(plot_mu_mfi,aes(x=clrankf,y=antigenf,fill=mulogmfi)) +
     legend.key.width=grid::unit(0.4,"cm"),
     
     #set remove x axis ticks
-    axis.title.x=element_text(hjust=0),
+    axis.title.x=element_text(hjust=1,size=8),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     #set y axis text colour and adjust vertical justification
@@ -406,14 +406,14 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   #add border white colour of line thickness 0.25
   geom_tile(colour="white",size=0.25)+
   #remove y axis labels, 
-  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  labs(x="Columns: communities stratified by arm then sorted by mean seroprevalence",y="",title="", hjust=1)+
   #remove extra space
   scale_y_discrete(expand=c(0,0),position="right")+
   scale_x_discrete(expand=c(0,0))+
   # scale_x_discrete(expand=c(0,0),
   #                  breaks=1:9,labels=1:9)+
   #change the scale_fill_manual
-  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+  scale_fill_distiller(palette="GnBu",na.value="grey90",
                        direction=0,
                        guide=guide_colorbar(title="sero-\nprev (%)",face='bold'))+
   # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
@@ -435,7 +435,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
     legend.key.width=grid::unit(0.4,"cm"),
     
     #set remove x axis ticks
-    axis.title.x=element_text(hjust=0, size=8),
+    axis.title.x=element_text(hjust=1, size=8),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     #set y axis text colour and adjust vertical justification
@@ -495,20 +495,17 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   #add border white colour of line thickness 0.25
   geom_tile(colour="white",size=0.25)+
   #remove y axis labels, 
-  labs(x="Clusters are stratified by arm then sorted by mean seroprevalence",y="",title="")+
+  labs(x="Columns: communities stratified by arm then sorted by mean seroprevalence",y="",title="")+
   #remove extra space
   scale_y_discrete(expand=c(0,0),position="right")+
   scale_x_discrete(expand=c(0,0))+
   # scale_x_discrete(expand=c(0,0),
   #                  breaks=1:9,labels=1:9)+
   #change the scale_fill_manual
-  scale_fill_distiller(palette="YlGnBu",na.value="grey90",
+  scale_fill_distiller(palette="GnBu",na.value="grey90",
                        direction=0,
                        guide=guide_colorbar(title="sero-\nprev (%)",face='bold'))+
   # scale_fill_manual(values=rev(brewer.pal(7,"YlGnBu")),na.value="grey90",guide=guide_colorbar(title="log10\nMFI-bg",face='bold'))+
-  #one unit on x-axis is equal to one unit on y-axis.
-  #equal aspect ratio x and y axis
-  # coord_equal()+
   #set base size for all font elements
   theme_grey(base_size=10)+
   #theme options
@@ -559,7 +556,7 @@ ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-malaria.p
 Enterics
 
 ```{r plot seroprev by community enterics, fig.width = 6, fig.height = 4}
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
 p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" & antigenf != "Streptococcus A"), aes(x = arm, y = seroprev, color = arm)) +
   facet_wrap(~antigenf, ncol = 3) +
   geom_jitter(width = 0.1, alpha = 0.5) +
@@ -581,7 +578,7 @@ ggsave(filename = here("figures","mordor-ab-community-seroprev-enterics.png"),p_
 Malaria
 
 ```{r plot seroprev by community malaria, fig.width = 5, fig.height = 4}
-pcols <- c(cbpal[2],vircols[3])
+pcols <- cbpal[c(2,6)]
 p_comm <- ggplot(data = mu_serop %>% filter(group == "malaria"), aes(x = arm, y = seroprev, color = arm)) +
   facet_wrap(~antigenf, ncol = 3) +
   geom_jitter(width = 0.1, alpha = 0.5) +
