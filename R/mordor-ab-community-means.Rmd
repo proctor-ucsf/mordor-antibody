@@ -557,7 +557,7 @@ Enterics
 
 ```{r plot seroprev by community enterics, fig.width = 6, fig.height = 4}
 pcols <- cbpal[c(2,6)]
-p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" & antigenf != "Streptococcus A"), aes(x = arm, y = seroprev, color = arm)) +
+p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" ), aes(x = arm, y = seroprev, color = arm)) +
   facet_wrap(~antigenf, ncol = 3) +
   geom_jitter(width = 0.1, alpha = 0.5) +
   geom_boxplot(color = "gray40",fill = NA, outlier.shape = NA, width = 0.5) +
@@ -571,7 +571,7 @@ p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" & antigenf != "St
 
 p_comm
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-enterics.png"),p_comm, device = "png", width=6,height=4)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-enterics.png"),p_comm, device = "png", width=6,height=6)
 
 ```
 
