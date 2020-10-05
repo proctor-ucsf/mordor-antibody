@@ -1,0 +1,221 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "summarize measurement timing vis-a-vis seasonal rainfall"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Examine antibody response by month of the year
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+
+```
+
+
+
+
+# Plot samples by month and vis-a-vis precipitation
+
+
+## Plot number of samples by calendar month
+
+```{r plot n by month, fig.width = 10, fig.height = 6}
+n_by_phase_month <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf),
+         phasef = factor(phase)) %>%
+  # create a month factor
+  mutate(testmonth = month(testdate),
+         testmonthf = factor(testmonth, levels=paste(1:12))) %>%
+  group_by(antigenf,phasef,testmonth) %>%
+  mutate(nomiss = ifelse(!is.na(logmfi),1,0)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep")
+
+#-----------------------------
+# create a dataframe to shade the wet season, May - Oct
+#-----------------------------
+# d_shade_box <- data.frame(antigenf = levels(d$antigenf)) %>%
+#   mutate(antigenf = factor(antigenf,levels=levels(d$antigenf)),
+#          minX = 5, 
+#          maxX = 10,
+#          arm = "sun"
+#          )
+
+# N is the same for all antigens, so just filter to one
+pcols <- cbpal[c(2,3,4,7,8)]
+plot_n_by_month <- ggplot(data = n_by_phase_month %>% filter(antigenf== "Campylobacter p18"), aes(x = testmonth, y = nobs, fill = phasef)) +
+  # geom_rect(data=d_shade_box %>% filter(antigenf== "Campylobacter p18"), inherit.aes = FALSE, aes(xmin = minX, xmax = maxX, ymin = 0, ymax = 1200), alpha=0.1) +
+  geom_bar(stat = "identity", alpha = 1, color = NA) +
+  scale_y_continuous(breaks=seq(0,1200,by=200)) +
+  scale_x_continuous(breaks = seq(2,12,by=2)) +
+  scale_fill_manual(values = pcols, guide = guide_legend(title="phase")) +
+  labs(x = "calendar month", y = "number of measurements",tag = "A") +
+  coord_cartesian(xlim = c(1,12)) +
+  theme_minimal()
+
+plot_n_by_month
+
+# ggsave(here("figures","mordor-ab-nobs-by-month.png"),plot_n_by_month,device = "png",width = 6, height = 4)
+
+```
+
+
+Create a plot of monthly precipitation. Overlay cluster study visit dates.
+
+```{r plot monthly precipitation}
+#-------------------------------
+# summarize median test date
+# for each cluster
+#-------------------------------
+cl_test_months <- d %>%
+  filter(antigen %in% c("vsp3")) %>%
+  mutate(phasef = factor(phase)) %>%
+  group_by(antigenf,clusterid,arm,phasef) %>%
+  summarize(pdate = median(testdate), .groups = "keep") %>%
+  group_by(arm,clusterid) %>%
+  arrange(arm,clusterid)
+
+# assign a numeric value to clusters for plotting
+# this is scaled to be from 1 to 270 (approx max of rainfall)
+# and is named "pre" to match rainfall data
+clnum <- group_indices(cl_test_months)
+cl_test_months$pre <- clnum*5
+
+#-------------------------------
+# load monthly precipitation data
+#-------------------------------
+dp <- read_csv(file = here("data","mordor-ab-monthly-precip.csv"))
+
+
+#-------------------------------
+# restrict to years 2015-2018
+# (period that overlaps with
+# the month 0-36 samples)
+# restrict to a single cluster
+# for plotting
+#-------------------------------
+dp <- dp %>%
+  filter(pdate >= ymd("2015-01-01") & pdate <= ymd("2018-12-31")) 
+
+#-------------------------------
+# plot precipitation over time
+#-------------------------------
+pcols <- cbpal[c(2,6)]
+plot_pre <- ggplot(data = dp %>% filter(clusterid=="C7"), aes(x = pdate, y = pre)) +
+  geom_polygon(alpha = 0.2) +
+  geom_point(data = cl_test_months, aes(x = pdate, y = pre, color = arm), alpha = 1, size = 0.7) +
+  scale_color_manual(values = pcols,guide = guide_legend(override.aes = list(alpha=1, size = 2))) +
+  scale_y_continuous(breaks = seq(0,250,by=50)) +
+  scale_x_date(date_minor_breaks = "2 months") +
+  labs(y = "monthly precipitation (mm)", x = "date") +
+  theme_minimal() +
+  theme(
+    legend.position = "top"
+  )
+
+plot_pre
+
+# ggsave(here("figures","mordor-ab-monthly-precip.png"),device = "png", width = 8, height = 4)
+
+```
+
+Alternate visualization, just shading months of measurment
+
+```{r plot monthly precipitation alternate}
+
+#-------------------------------
+# estimate minimum and maximum
+# test dates by phase
+#-------------------------------
+phase_test_months <- cl_test_months %>%
+  group_by(phasef) %>%
+  # drop cluster C64 in phase 12 — it was way off cycle
+  mutate(dropobs = ifelse(clusterid == "C64" & phasef=="12",1,0)) %>%
+  filter(dropobs == 0) %>%
+  summarize(mindate = min(pdate),
+            maxdate = max(pdate), 
+            .groups = "keep") %>%
+  mutate(treatdate = as.Date(mindate + difftime(maxdate,mindate)/2 ))
+
+
+#-------------------------------
+# plot precipitation over time
+#-------------------------------
+pcols <- cbpal[c(2,3,4,7,8)]
+plot_pre <- ggplot(data = dp %>% filter(clusterid=="C7"), aes(x = pdate, y = pre)) +
+  geom_polygon(alpha = 0.3) +
+  geom_rect(data=phase_test_months, inherit.aes = FALSE, aes(xmin = mindate, xmax = maxdate, ymin = 0, ymax = 250, fill = phasef), alpha=0.3, color =NA) +
+  geom_text(data=phase_test_months, inherit.aes = FALSE, aes(x = treatdate,  y = 240, label = phasef),color = pcols) +
+  # geom_point(data = cl_test_months, aes(x = pdate, y = pre, color = arm), alpha = 1, size = 0.7) +
+  scale_fill_manual(values = pcols,guide = guide_legend(title = "phase",override.aes = list(alpha=1, size = 2))) +
+  scale_y_continuous(breaks = seq(0,250,by=50)) +
+  scale_x_date(date_minor_breaks = "2 months") +
+  labs(y = "monthly precipitation (mm)", x = "date",tag="B") +
+  theme_minimal() +
+  theme(
+    legend.position = "none"
+  )
+
+plot_pre
+
+# ggsave(here("figures","mordor-ab-monthly-precip-phases.png"),device = "png", width = 6, height = 2.5)
+
+```
+
+
+# Composite figure
+
+```{r composite measurement figure}
+meas_comp <- grid.arrange(plot_n_by_month,plot_pre,ncol=2,nrow=1,widths=c(2,3))
+
+ggsave(here("figures","mordor-ab-measurement-timing.png"),meas_comp,device="png",height=3,width=9)
+
+```
+
+
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
