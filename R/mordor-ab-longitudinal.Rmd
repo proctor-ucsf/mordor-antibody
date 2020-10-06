@@ -752,7 +752,230 @@ Save longitudinal rates by arm for other comparisons
 write_csv(irr_ests,here("data","mordor-ab-longitudinal-irr-ests.csv"))
 ```
 
+# Rate comparison
 
+Compare longitudinal estimates with the cross-sectional (primary) analysis.
+
+## Load saved estimates
+
+Load saved cross-sectional estimates, and harmonize the data
+
+# Load the saved estimates
+
+```{r load saved estimates}
+#-------------------------------
+# load the cross-sectional estimates
+# mordor-ab-mean-diffs.Rmd
+#-------------------------------
+dc <- read_csv(here("data","mordor-ab-cross-sectional-foi-ests.csv"))
+
+
+#-------------------------------
+# create a summary dataset
+# of rates by arm
+# the cross-sectional estimates
+# are in units per-month, so 
+# multiply them by 12 before
+# combining
+# 
+# rename HR -> IRR
+#-------------------------------
+dc2 <- dc %>%
+  mutate(seroi_a = lambda1*12,
+         seroi_lb_a = lambda1_min95*12,
+         seroi_ub_a = lambda1_max95*12,
+         seroi_p = lambda0*12,
+         seroi_lb_p = lambda0_min95*12,
+         seroi_ub_p = lambda0_max95*12,
+  ) %>%
+  select(antigenf,starts_with("seroi_"),irr=hr,irr_lb=hr_min95,irr_ub=hr_max95) %>%
+  mutate(analysis = "cross-sectional")
+
+#-------------------------------
+# stack the longitudinal and
+# cross-sectional estimates
+# convert labels to factor
+#-------------------------------
+d <- irr_ests %>%
+  mutate(analysis = "longitudinal") %>%
+  bind_rows(dc2) %>%
+  mutate(analysis = factor(analysis, levels = c("cross-sectional","longitudinal"))) %>%
+  mutate(antigenf = factor(antigenf,levels = 
+                             c("Campylobacter p18 or p39",
+                               "ETEC LTB",
+                               "Cholera CTB",
+                               "Salmonella LPS B or D",
+                               "Cryptosporidium Cp17 or Cp23",
+                               "Giardia VSP-3 or VSP-5",
+                               "Streptococcus A",
+                               "P. falciparum MSP-1",
+                               "P. falciparum AMA",
+                               "P. falciparum GLURP-Ro",
+                               "P. falciparum LSA1",
+                               "P. falciparum CSP",
+                               "P. falciparum HRP2",
+                               "P. malariae MSP-1",
+                               "P. ovale MSP-1",
+                               "P. vivax MSP-1"
+                             )
+                           )
+         )
+d$group = "enterics\nand\nstrep"
+d$group[substr(as.character(d$antigenf),1,3)=="P. "] <- "malaria"
+
+#-------------------------------
+# tediously reshape intervention
+# group to long format to 
+# make it easier to plot estimates
+#-------------------------------
+da <- d %>%
+  select(group,antigenf,analysis,ni=ni_a,nit=nit_a,seroi=seroi_a,seroi_lb = seroi_lb_a, seroi_ub = seroi_ub_a, nr = nr_a, nrt = nrt_a, seror = seror_a, seror_lb = seror_lb_a, seror_ub = seror_ub_a,irr,irr_lb,irr_ub,srr,srr_lb,srr_ub) %>%
+  mutate(arm = "azithromycin")
+
+dp <- d %>%
+  select(group,antigenf,analysis,ni=ni_p,nit=nit_p,seroi=seroi_p,seroi_lb = seroi_lb_p, seroi_ub = seroi_ub_p, nr = nr_p, nrt = nrt_p, seror = seror_p, seror_lb = seror_lb_p, seror_ub = seror_ub_p) %>%
+  mutate(arm = "placebo")
+
+d2 <- da %>%
+  bind_rows(dp) %>%
+  mutate(arm = factor(arm, levels = c("placebo","azithromycin")))
+
+```
+
+
+
+
+## Malaria comparison figure
+
+Seroconversion rate panel
+
+```{r plot seroconversion rates malaria}
+
+d_plot_rates <- d2 %>%
+  filter(group=="malaria") %>%
+  mutate(antigenf = factor(antigenf, levels=rev(levels(d2$antigenf)))) %>%
+  arrange(antigenf,arm,desc(analysis))
+
+plot_scr_malaria <- ggplot(data = d_plot_rates, aes(x = antigenf, y = seroi,color = analysis, shape= analysis )) +
+  facet_grid(.~arm) +
+  geom_errorbar(aes(ymin = seroi_lb, ymax = seroi_ub), width=0.2, position = position_nudge(c(-0.1,0.1))) + 
+  geom_point(position = position_nudge(c(-0.1,0.1))) +
+  scale_x_discrete(position = "top") +
+  scale_y_continuous(breaks=seq(0,1,by=0.2)) + 
+  scale_color_manual(values = c("black",cbpal[2])) +
+  labs(x=NULL,y="seroconversion rate per child-year\n") +
+  coord_flip(ylim=c(0,1)) +
+  theme_minimal() +
+  theme(
+    legend.position = "left"
+  )
+
+
+```
+
+Hazard ratio panel
+
+```{r plot HRs malaria}
+
+d_plot_hr <- d2 %>%
+  filter(group=="malaria" & arm == "azithromycin") %>%
+  mutate(antigenf = factor(antigenf, levels=rev(levels(d2$antigenf)))) %>%
+  arrange(antigenf,desc(analysis))
+
+
+plot_hr_malaria <- ggplot(data = d_plot_hr, aes(x = antigenf, y = irr,color = analysis, shape= analysis )) +
+  facet_grid(.~arm) +
+  geom_hline(yintercept = 1, color = "gray70") +
+  geom_errorbar(aes(ymin = irr_lb, ymax = irr_ub), width=0.2, position = position_nudge(c(-0.1,0.1))) + 
+  geom_point(position = position_nudge(c(-0.1,0.1))) +
+  scale_y_continuous(breaks=c(0.2,0.5,1,2,3), trans = "log") +
+  scale_color_manual(values = c("black",cbpal[2])) +
+  labs(x=NULL,y="hazard ratio\nazithromycin / placebo") +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y  = element_blank(),
+    strip.text.x = element_text(color="white")
+  )
+
+
+```
+
+Composite plot
+```{r plot composite malaria, fig.height=3, fig.width = 12}
+malaria_comp <- grid.arrange(plot_scr_malaria,plot_hr_malaria,ncol=2,nrow=1,widths=c(3,1))
+
+ggsave(filename = here("figures","mordor-ab-long-v-cross-malaria.png"),malaria_comp,device = "png",height=3,width=10)
+
+```
+
+## Enterics comparison figure
+
+Seroconversion rate panel
+
+```{r plot seroconversion rates enterics}
+
+d_plot_rates <- d2 %>%
+  filter(group!="malaria") %>%
+  mutate(antigenf = factor(antigenf, levels=rev(levels(d2$antigenf)))) %>%
+  arrange(antigenf,arm,desc(analysis))
+
+plot_scr_enterics <- ggplot(data = d_plot_rates, aes(x = antigenf, y = seroi,color = analysis, shape= analysis )) +
+  facet_grid(.~arm) +
+  geom_errorbar(aes(ymin = seroi_lb, ymax = seroi_ub), width=0.2, position = position_nudge(c(-0.1,0.1))) + 
+  geom_point(position = position_nudge(c(-0.1,0.1))) +
+  scale_x_discrete(position = "top") +
+  scale_color_manual(values = c("black",cbpal[2])) +
+  labs(x=NULL,y="seroconversion rate per child-year\n") +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    legend.position = "left"
+  )
+
+
+```
+
+Hazard ratio panel
+
+```{r plot HRs enterics}
+
+d_plot_hr <- d2 %>%
+  filter(group!="malaria" & arm == "azithromycin") %>%
+  mutate(antigenf = factor(antigenf, levels=rev(levels(d2$antigenf)))) %>%
+  arrange(antigenf,desc(analysis))
+
+
+plot_hr_enterics <- ggplot(data = d_plot_hr, aes(x = antigenf, y = irr,color = analysis, shape= analysis )) +
+  facet_grid(.~arm) +
+  geom_hline(yintercept = 1, color = "gray70") +
+  geom_errorbar(aes(ymin = irr_lb, ymax = irr_ub), width=0.2, position = position_nudge(c(-0.1,0.1))) + 
+  geom_point(position = position_nudge(c(-0.1,0.1))) +
+  scale_y_continuous(breaks=c(0.5,1,1.5,2), trans = "log") +
+  scale_color_manual(values = c("black",cbpal[2])) +
+  labs(x=NULL,y="hazard ratio\nazithromycin / placebo") +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    legend.position = "non",
+    axis.title.y = element_blank(),
+    axis.text.y  = element_blank(),
+    strip.text.x = element_text(color="white")
+  )
+
+
+```
+
+Composite plot
+```{r plot composite enterics, fig.height=3, fig.width = 12}
+enterics_comp <- grid.arrange(plot_scr_enterics,plot_hr_enterics,ncol=2,nrow=1,widths=c(3,1))
+
+ggsave(filename = here("figures","mordor-ab-long-v-cross-enterics.png"),enterics_comp,device = "png",height=3,width=10)
+
+```
 
 # Session Info
 ```{r session info}
