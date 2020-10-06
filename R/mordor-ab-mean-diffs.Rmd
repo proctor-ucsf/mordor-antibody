@@ -1102,6 +1102,12 @@ plot_scr_comp_malaria <- grid.arrange(plot_scr_means_malaria,plot_scr_hr_malaria
 ggsave(here("figures","mordor-ab-scr-hr-malaria.png"),plot_scr_comp_malaria,device = "png",width = 8, height = 2.5)
 ```
 
+# Save estimates for comparison with longitudinal ests
+
+```{r save foi estimates}
+write_csv(foi_ests_tab,here("data","mordor-ab-cross-sectional-foi-ests.csv"))
+```
+
 # Session Info
 ```{r session info}
 sessionInfo()
