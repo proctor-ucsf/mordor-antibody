@@ -103,9 +103,12 @@ d_nolong <- d2 %>%
 #-------------------------------
 # print number of children with 
 # different numbers of measurements
-# for enterics (6-24 mos) and malaria (12-59 mos)
+# for enterics (6-24 mos) 
+# salmonella/strep (6-59 mos)
+# and malaria (12-59 mos)
 #-------------------------------
 table(d_nolong$nobs[d_nolong$antigen=="etec"])/1:4
+table(d_nolong$nobs[d_nolong$antigen=="salb"])/1:5
 table(d_nolong$nobs[d_nolong$antigen=="ama"])/1:5
 
 #-------------------------------
@@ -121,8 +124,6 @@ dl <- d_nolong %>%
   filter(nobs>1) %>%
   arrange(antigenf,childid,phase) %>%
   mutate(phase_diff = phase - lag(phase))
-
-table(dl$antigenf,dl$phase_diff)
 
 #-----------------------------
 # inspect children who have
@@ -145,14 +146,35 @@ dl <- dl %>%
   filter(min_agediff >0) %>%
   select(-age_diff,-min_agediff)
 
+# observations by antigen and phase
+table(dl$antigenf,dl$phase)
+
+# observations by antigen and months between phases
+# most repeated measures are 6-12 months apart
+table(dl$antigenf,dl$phase_diff)
+
+
 #-------------------------------
 # print final number of children with 
 # different numbers of measurements
-# for enterics (6-24 mos) and malaria (12-59 mos)
+# for enterics (6-24 mos) 
+# salmonella/strep (6-59 mos)
+# and malaria (12-59 mos)
 #-------------------------------
-table(dl$nobs[dl$antigen=="etec"])/2:4
-table(dl$nobs[dl$antigen=="ama"])/2:5
 
+table(dl$antigenf)
+
+# Enterics
+table(dl$nobs[dl$antigen=="etec"])/2:4
+sum(table(dl$nobs[dl$antigen=="etec"])/2:4)
+
+# Salmonella and Streptococcus
+table(dl$nobs[dl$antigen=="salb"])/2:5
+sum(table(dl$nobs[dl$antigen=="salb"])/2:5)
+
+# malaria
+table(dl$nobs[dl$antigen=="ama"])/2:5
+sum(table(dl$nobs[dl$antigen=="ama"])/2:5)
 
 ```
 
@@ -526,8 +548,11 @@ ggplot(data=bsum,aes(x=sero_r)) + geom_density() + facet_wrap(~antigenf,ncol=2,s
 
 ```{r seroconversion rate table}
 rate_ests_tab <- rate_ests[c(8:16,1:7),] %>%
-  select(antigenf,nit,ni,seroi,seroi_lb,seroi_ub,nrt,nr,seror,seror_lb,seror_ub) %>%
-  knitr::kable(digits=2,
+  select(antigenf,nit,ni,seroi,seroi_lb,seroi_ub,nrt,nr,seror,seror_lb,seror_ub)
+
+
+knitr::kable(rate_ests_tab,
+             digits=2,
              caption="Longitudinal incidence rates of seroconversion and seroreversion per child year, MORDOR Niger, 2015-2018.",
              col.names = c("Pathogen, antigen(s)","Years at risk","n events","Incidence per year","min95","max95","Years at risk","n events","Incidence per year","min95","max95"),
              row.names = FALSE) %>%
@@ -673,7 +698,17 @@ irr_ests_tab <- irr_ests[c(8:16,1:7),] %>%
          seror_a_print = paste0(sprintf("%1.2f",seror_a)," (",sprintf("%1.2f",seror_lb_a),", ",sprintf("%1.2f",seror_ub_a),")"),
          seror_p_print = paste0(sprintf("%1.2f",seror_p)," (",sprintf("%1.2f",seror_lb_p),", ",sprintf("%1.2f",seror_ub_p),")"),
          srr_print = paste0(sprintf("%1.2f",srr)," (",sprintf("%1.2f",srr_lb),", ",sprintf("%1.2f",srr_ub),")"),
+         ) %>%
+  # set zero rates and infinite IRRs to zero / NA
+  mutate(seroi_a_print = ifelse(ni_a == 0, "0", seroi_a_print),
+         seroi_p_print = ifelse(ni_p == 0, "0", seroi_p_print),
+         seror_a_print = ifelse(nr_a == 0, "0", seror_a_print),
+         seror_p_print = ifelse(nr_p == 0, "0", seror_p_print),
+         irr_print = ifelse(ni_a == 0 | ni_p == 0, "n/a", irr_print),
+         srr_print = ifelse(nr_a == 0 | nr_p == 0, "n/a", srr_print)
          )
+
+
 
 knitr::kable(irr_ests_tab %>% select(antigenf,ni_a,nit_a,seroi_a_print,ni_p,nit_p,seroi_p_print,irr_print),
              caption = "Seroconversion rates estimated longitudinally among children in MORDOR Niger, 2015 - 2018.",
@@ -682,6 +717,7 @@ knitr::kable(irr_ests_tab %>% select(antigenf,ni_a,nit_a,seroi_a_print,ni_p,nit_
              align = "lrrcrrcc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 1, "Azithromycin" = 3,  "Placebo" = 3, " " = 1)) %>%
+  kableExtra::column_spec(column = c(4,7,8), width = "150px") %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 1, end_row = 9) %>%
   kableExtra::group_rows(group_label = "Bacteria & protozoans", start_row = 10, end_row = 16) 
 
@@ -696,6 +732,7 @@ knitr::kable(irr_ests_tab %>% select(antigenf,nr_a,nrt_a,seror_a_print,nr_p,nrt_
              align = "lrrcrrcc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 1, "Azithromycin" = 3,  "Placebo" = 3, " " = 1)) %>%
+  kableExtra::column_spec(column = c(4,7,8), width = "150px") %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 1, end_row = 9) %>%
   kableExtra::group_rows(group_label = "Bacteria & protozoans", start_row = 10, end_row = 16) 
 
@@ -847,7 +884,7 @@ plot_hr_malaria <- ggplot(data = d_plot_hr, aes(x = antigenf, y = irr,color = an
   geom_point(position = position_nudge(c(-0.1,0.1))) +
   scale_y_continuous(breaks=c(0.2,0.5,1,2,3), trans = "log") +
   scale_color_manual(values = c("black",cbpal[2])) +
-  labs(x=NULL,y="HR or IRR\nazithromycin / placebo") +
+  labs(x=NULL,y="HR (cross-sectional) or IRR (longitudinal) \nazithromycin / placebo") +
   coord_flip() +
   theme_minimal() +
   theme(
@@ -896,7 +933,7 @@ plot_scr_enterics <- ggplot(data = d_plot_rates, aes(x = antigenf, y = seroi,col
 
 ```
 
-Hazard ratio panel
+Hazard/rate ratio panel
 
 ```{r plot HRs enterics}
 
@@ -913,7 +950,7 @@ plot_hr_enterics <- ggplot(data = d_plot_hr, aes(x = antigenf, y = irr,color = a
   geom_point(position = position_nudge(c(-0.1,0.1))) +
   scale_y_continuous(breaks=c(0.5,1,1.5,2), trans = "log") +
   scale_color_manual(values = c("black",cbpal[2])) +
-  labs(x=NULL,y="HR or IRR\nazithromycin / placebo") +
+  labs(x=NULL,y="HR (cross-sectional) or IRR (longitudinal) \nazithromycin / placebo") +
   coord_flip() +
   theme_minimal() +
   theme(
