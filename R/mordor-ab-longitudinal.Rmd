@@ -263,9 +263,10 @@ dl2 <- dl %>%
          -logmfi_lag,-logmfi_lead,-seropos_lag)
 
 #-----------------------------
-# incident seroconversions based on a 4-fold increase in MFI
+# alternate definition
+# incident boosting based on a 4-fold increase in MFI
 # with a second measure above the seropositivity cutoff
-# incident seroreversions based on a 4-fold decrease in MFI
+# incident waning based on a 4-fold decrease in MFI
 # with the first measure above the seropositivity cutoff
 #-----------------------------
 dl2 <- dl2 %>%
@@ -358,53 +359,18 @@ Estimate seroconversion rates and seroreversion rates for each pathogen. For ent
 
 ## Identify incident seroconversion and seroreversion
 
-Defined as a 4-fold increase in IgG to above seropositivity cutoff (seroconversion) or a 4-fold decrease in IgG from above seropositivity cutoff. 
+Defined as an increase in IgG to above seropositivity cutoff (seroconversion) or a decrease in IgG from above to below seropositivity cutoff. 
 
 ```{r identify incident seroconversion and seroreversions}
-#-----------------------------
-# identify incident 
-# seroconversions and reversions
-#-----------------------------
-
-#-----------------------------
-# Identify incident boosting/waning 
-# of 4-fold MFI or more. For
-# incident boosting, +4fold increase
-# that ends above seropositivity cutoff
-# for incident waning, -4fold decrease
-# that starts above seropositivity cutoff
-#-----------------------------
-dl3 <- dl2 %>%
-  group_by(antigenf,childid) %>%
-  arrange(antigenf,childid,phase) %>%
-  mutate(nobs=n(),obsnum=row_number(),
-         agediff=ifelse(obsnum==1,lead(agem)-agem,agem-lag(agem)),
-         
-    logmfi_lag  = lag(logmfi),
-    logmfi_lead = lead(logmfi),
-    logmfi_dlag  = logmfi - logmfi_lag,
-    logmfi_dlead = logmfi_lead - logmfi,
-    logmfi_d4fold = ifelse(logmfi_dlag>log10(4),1,0),
-    # incident boosting based on a 4-fold increase in MFI
-    # with a second measure above the seropositivity cutoff
-    seroi4fold = ifelse(logmfi_dlag>log10(4) & logmfi>log10(serocut),1,0),
-    seroi4fold = ifelse(is.na(logmfi_dlag),NA,seroi4fold),
-    # incident waning based on a 4-fold decrease in MFI
-    # with the first measure above the seropositivity cutoff
-    seror4fold = ifelse(logmfi_dlag< -log10(4) & logmfi_lag>log10(serocut),1,0)
-         ) %>%
-  ungroup()
-
 
 #-----------------------------
 # create composite
-# seroprevalence, boosting,
-# and waning indicators
+# seroprevalence indicators
 # that use information from
 # multiple antigens if available
 # for the enterics
 #-----------------------------
-dl4 <- dl3 %>%
+dl3 <- dl2 %>%
   ungroup() %>%
   mutate(antigenf2 = antigenf,
          antigenf2 = case_when(antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39",
@@ -422,87 +388,63 @@ dl4 <- dl3 %>%
            "Giardia VSP-3 or VSP-5",
            levels(d2$antigenf)[11:20]) )
          ) %>%
-  select(antigenf2,antigenf,clusterid,childid,arm,phase,agem,age_diff,seropos,seroi4fold,seror4fold) %>%
-  # since incidence could fall at slightly different times across the antigens
-  # for the same pathogen, use the earlier onset as the incidence measure
-  arrange(antigenf2,childid,phase) %>%
-  group_by(antigenf2,childid) %>%
-  mutate(lagseroi=lag(seroi4fold),
-         seroi4fold=ifelse(seroi4fold==1 & lagseroi==1 & !is.na(lagseroi),0,seroi4fold)) %>%
-  # since incidence could fall at slightly different times across the antigens
-  # for the same pathogen, use the later onset as the incident measure
-  mutate(leadseror=lead(seror4fold),
-         seror4fold=ifelse(seror4fold==1 & leadseror==1 & !is.na(leadseror),0,seror4fold)) %>%
-  # now get the max for each pathogen at each timepoint
+  select(antigenf2,antigenf,clusterid,childid,arm,phase,agem,seropos) %>%
   group_by(antigenf2,childid,phase) %>%
-  mutate(seropos=max(seropos),
-         seroi4fold=max(seroi4fold),
-         seror4fold=max(seror4fold)
-         ) %>%
+  mutate(seropos=max(seropos)) %>%
   slice(1) %>%
-  select(antigenf=antigenf2,clusterid,childid,arm,phase,agem,age_diff,seropos,seroi4fold,seror4fold) %>%
-  group_by(antigenf,childid) %>%
+  select(antigenf=antigenf2,clusterid,childid,arm,phase,agem,seropos) 
+
+
+
+  # mutate(nobs=n(),obsnum=row_number(),
+  #        agediff=ifelse(obsnum==1,lead(agem)-agem,agem-lag(agem)),
+  #        
+#-----------------------------
+# group the data by child and
+# use lags to identify
+# time in years between measurements,
+# sero-conversions + sero-reversions 
+# between measurements
+# set the first measurement to 
+# missing for the incidence indicators
+# (using the is.na(age_diff) to identify them)
+#-----------------------------
+dl4 <- dl3 %>%
+  group_by(antigenf,childid) %>% 
   arrange(antigenf,childid,phase) %>%
-  mutate(obsnum = row_number())
+  mutate(obsnum = row_number()) %>%
+  mutate(age_min  = min(agem),
+         age_diff = agem - lag(agem),
+         
+         # incident seroconversions and reversions
+         seropos_lag  = lag(seropos),
+         seroi = ifelse(seropos==1 & seropos_lag==0,1,0),
+         seroi = ifelse(is.na(age_diff),NA,seroi),
+         seror = ifelse(seropos==0 & seropos_lag==1,1,0),
+         seror = ifelse(is.na(age_diff),NA,seror)
+         )
 
 #-----------------------------
 # estimate time at risk
 # for seroconversion and reversion
 # assumed to be 1/2 of time
 # between measurements
-# if indivs seroconvert
-# 
-# create indicators of at risk
-# based on incidence boosting
-# and waning
-# at risk if seronegative OR experienced
-# a 4-fold decrease in MFI in previous period
+# if indivs are seropositive
+# at measurement 1 they are
+# not at risk for seroconversion
+# (and vice-versa for seroreversion)
 #
-# the below code is opaque, but confirmed through 
-# extensive vetting and inspection that it does this:
-# children are at risk of boosting if they are seronegative or
-# if they experience a 4-fold decrease in MFI between the previous
-# two measurements
+# convert differences in age
+# in months to years for
+# eventual rate estimates per-year
 #-----------------------------
 dl5 <- dl4 %>%
-  mutate(seroi4fold=ifelse(obsnum==1,0,seroi4fold),
-         seror4fold=ifelse(obsnum==1,0,seror4fold),
-         maxobs=max(obsnum),
-         # seronegative at obs 1: at risk
-         # seropositive at obs 1: not at risk
-         cntr = 0,
-         cntr = ifelse(seroi4fold==1 & lag(seroi4fold)==0,-1,0), # counter -1 if first +4
-         cntr = ifelse(obsnum==1 & seropos==0,1,cntr), # counter +1 if seroneg&obs1
-         cntr = ifelse(seror4fold==1,1,cntr), # counter +1 if seror
-         cntr = ifelse(seror4fold==1 & seropos==0 & lag(cntr)==1,cntr-1,cntr),
-         
-         # sum counter to help with recodes below
-         cntrs = cumsum(cntr),
-         
-         cntr = ifelse(obsnum!=maxobs & lead(cntr)==-1 & lead(cntrs)==-1,1,cntr),
-         cntr = ifelse(obsnum!=maxobs & lead(cntr)==-1 & lead(cntrs)==-2,1,cntr),
-         cntr = ifelse(seror4fold==1 & cntrs==2,0,cntr),
-
-         # indicator of whether a chlid is at risk for seroconversion
-         atrisk = cumsum(cntr),
-         atrisk = lag(atrisk),
-         
-         # fix a very small number of idiosyncratic situations
-         # that don't fit neatly into the above algorithm (n=5)
-         atrisk = ifelse(obsnum==1,0,atrisk),
-         atrisk = ifelse(obsnum > 2 & atrisk==2 | lag(atrisk==2),atrisk-1,atrisk),
-         
-         # now calculate person time at risk for conversion and reversion
-         # use years for the unit of time at risk (so divide age_diff in months by 12)
-         atriskc = atrisk,
-         atriskr = 1-atrisk,
-         ptc = ifelse(atriskc==1,age_diff/12,0),
-         ptc = ifelse(atriskc==1 & seroi4fold==1,(age_diff/2)/12,ptc),
-         ptr = ifelse(atriskr==1,age_diff/12,0),
-         ptr = ifelse(atriskr==1 & seror4fold==1,(age_diff/2)/12,ptr)
-         
-  )
-
+  mutate(ptc = ifelse(seropos==0 & seror==0,age_diff,0),
+         ptc = ifelse(seropos==1 & seroi==1,age_diff/2,ptc),
+         ptc = ptc/12,
+         ptr = ifelse(seropos==1 & seroi==0,age_diff,0),
+         ptr = ifelse(seropos==0 & seror==1,age_diff/2,ptr),
+         ptr = ptr/12)
 
 ```
 
@@ -520,11 +462,11 @@ dl5 <- dl4 %>%
 # for each antibody
 # units are episodes per child-year
 #-----------------------------
-rate_ests_4fold <- dl5 %>%
+rate_ests <- dl5 %>%
   group_by(antigenf) %>%
-  summarize(ni=sum(seroi4fold,na.rm=T),
+  summarize(ni=sum(seroi,na.rm=T),
             nit=sum(ptc,na.rm=T),
-            nr=sum(seror4fold,na.rm=T),
+            nr=sum(seror,na.rm=T),
             nrt=sum(ptr,na.rm=T),
             .groups = "keep") %>%
   mutate(seroi=ni/nit,seror=nr/nrt)
@@ -537,7 +479,7 @@ rate_ests_4fold <- dl5 %>%
 #-----------------------------
 dboot <- dl5 %>%
   group_by(antigenf) %>%
-  select(clusterid,antigenf,seroi4fold,seror4fold,ptc,ptr)
+  select(clusterid,antigenf,seroi,seror,ptc,ptr)
 
 nreps <- 1000
 ids <- unique(dboot$clusterid)
@@ -554,7 +496,7 @@ bootests <- foreach(ab=levels(dboot$antigenf),.combine=rbind) %:%
 
 rate_cis <- bootests %>% 
   group_by(antigenf) %>%
-  mutate(sero_c=seroi4fold/ptc,sero_r=seror4fold/ptr) %>%
+  mutate(sero_c=seroi/ptc,sero_r=seror/ptr) %>%
   # restrict to finite values (some ETEC bootstrap replicates have a denominator of 0)
   summarize(seroi_lb = quantile(sero_c[is.finite(sero_c)],probs=c(0.025),na.rm=T),
             seroi_ub = quantile(sero_c[is.finite(sero_c)],probs=c(0.975),na.rm=T),
@@ -563,7 +505,7 @@ rate_cis <- bootests %>%
             .groups = "keep"
             )
 
-rate_ests_4fold <- left_join(rate_ests_4fold,rate_cis,by="antigenf") %>%
+rate_ests <- left_join(rate_ests,rate_cis,by="antigenf") %>%
   select(antigenf,ni,nit,starts_with("seroi"),nr,nrt,starts_with("seror"))
 
 ```
@@ -572,7 +514,7 @@ Confirm bootstrap distributions of the rates are smooth and reasonable
 ```{r check boot distributions, fig.width = 8, fig.height = 12}
 bsum <- bootests %>% 
   group_by(antigenf) %>%
-  mutate(sero_c=seroi4fold/ptc,sero_r=seror4fold/ptr)
+  mutate(sero_c=seroi/ptc,sero_r=seror/ptr)
 
 ggplot(data=bsum,aes(x=sero_c)) + geom_density() + facet_wrap(~antigenf,ncol=2,scales="free") + labs(title = "Seroconversion") + theme_minimal()
 
@@ -583,17 +525,17 @@ ggplot(data=bsum,aes(x=sero_r)) + geom_density() + facet_wrap(~antigenf,ncol=2,s
 ## Table of results
 
 ```{r seroconversion rate table}
-rate_ests_4fold %>%
+rate_ests_tab <- rate_ests[c(8:16,1:7),] %>%
   select(antigenf,nit,ni,seroi,seroi_lb,seroi_ub,nrt,nr,seror,seror_lb,seror_ub) %>%
   knitr::kable(digits=2,
-             caption="Longitudinal incidence rates of 4-fold antibody boosting and waning per child year, MORDOR Niger, 2015-2018.",
+             caption="Longitudinal incidence rates of seroconversion and seroreversion per child year, MORDOR Niger, 2015-2018.",
              col.names = c("Pathogen, antigen(s)","Years at risk","n events","Incidence per year","min95","max95","Years at risk","n events","Incidence per year","min95","max95"),
              row.names = FALSE) %>%
   kableExtra::kable_styling(bootstrap_options = c("striped"),full_width = TRUE) %>%
-  kableExtra::add_header_above(c(" " = 1, "Seroconversion (IgG boosting) *" = 5, "Seroreversion (IgG waning) †" = 5)) %>% 
-  kableExtra::group_rows("Enterics and strep", 1,7) %>%
-  kableExtra::group_rows("Malaria", 8, 16) %>%
-  kableExtra::footnote(symbol = c("Incident seroconversion defined by a 4-fold increase in IgG levels (MFI-bg) to a final level above the seropositivity cutoff.", "Incident seroreversion defined by a 4-fold decrease in IgG levels from a starting level above the seropositivy cutoff.")
+  kableExtra::add_header_above(c(" " = 1, "Seroconversion *" = 5, "Seroreversion †" = 5)) %>% 
+  kableExtra::group_rows("Malaria", 1,9) %>%
+  kableExtra::group_rows("Bacteria and protozoans", 10,16) %>%
+  kableExtra::footnote(symbol = c("Incident seroconversion defined by an increase in IgG levels (MFI-bg) to above the seropositivity cutoff.", "Incident seroreversion defined by a decrease in IgG levels to below the seropositivy cutoff.")
            )
 
 ```
@@ -603,7 +545,7 @@ rate_ests_4fold %>%
 Save longitudinal rates pooled over arms (total population)
 
 ```{r save long rates}
-write_csv(rate_ests_4fold,here("data","mordor-ab-longitudinal-rate-ests.csv"))
+write_csv(rate_ests,here("data","mordor-ab-longitudinal-rate-ests.csv"))
 ```
 
 # Estimate rates by arm
@@ -625,9 +567,9 @@ Estimate prospective incidence rates and incidence rate ratio by arm as a sensit
 #-----------------------------
 rate_ests_by_arm <- dl5 %>%
   group_by(antigenf,arm) %>%
-  summarize(ni=sum(seroi4fold,na.rm=T),
+  summarize(ni=sum(seroi,na.rm=T),
             nit=sum(ptc,na.rm=T),
-            nr=sum(seror4fold,na.rm=T),
+            nr=sum(seror,na.rm=T),
             nrt=sum(ptr,na.rm=T),
             .groups = "keep") %>%
   mutate(seroi=ni/nit,seror=nr/nrt)
@@ -640,7 +582,7 @@ rate_ests_by_arm <- dl5 %>%
 #-----------------------------
 dboot <- dl5 %>%
   group_by(antigenf,arm) %>%
-  select(clusterid,antigenf,arm,seroi4fold,seror4fold,ptc,ptr)
+  select(clusterid,antigenf,arm,seroi,seror,ptc,ptr)
 
 nreps <- 1000
 ids <- unique(dboot$clusterid)
@@ -659,8 +601,8 @@ bootests <- foreach(ab=levels(dboot$antigenf),.combine=rbind) %:%
 # estimate bootstrap 95% CIs for rates
 rate_cis_by_arm <- bootests %>% 
   group_by(antigenf,arm) %>%
-  mutate(sero_c = seroi4fold/ptc,
-         sero_r = seror4fold/ptr) %>%
+  mutate(sero_c = seroi/ptc,
+         sero_r = seror/ptr) %>%
   # restrict to finite values (some ETEC bootstrap replicates have a denominator of 0)
   summarize(seroi_lb = quantile(sero_c[is.finite(sero_c)],probs=c(0.025),na.rm=T),
             seroi_ub = quantile(sero_c[is.finite(sero_c)],probs=c(0.975),na.rm=T),
@@ -676,19 +618,19 @@ rate_ests_by_arm <- left_join(rate_ests_by_arm,rate_cis_by_arm,by=c("antigenf","
 rate_boot_p <- bootests %>% 
   filter(arm=="placebo") %>% 
   select(antigenf, brep,
-         seroi4fold_p = seroi4fold, ptc_p = ptc,
-         seror4fold_p = seror4fold, ptr_p = ptr)
+         seroi_p = seroi, ptc_p = ptc,
+         seror_p = seror, ptr_p = ptr)
 
 rate_boot_irr <- bootests %>% 
   filter(arm=="azithro") %>%
   select(antigenf, brep,
-         seroi4fold_a = seroi4fold, ptc_a = ptc,
-         seror4fold_a = seror4fold, ptr_a = ptr) %>%
+         seroi_a = seroi, ptc_a = ptc,
+         seror_a = seror, ptr_a = ptr) %>%
   left_join(rate_boot_p, by = c("antigenf","brep")) %>%
-  mutate(irate_azithro = seroi4fold_a / ptc_a,
-         irate_placebo = seroi4fold_p / ptc_p,
-         rrate_azithro = seror4fold_a / ptr_a,
-         rrate_placebo = seror4fold_p / ptr_p,
+  mutate(irate_azithro = seroi_a / ptc_a,
+         irate_placebo = seroi_p / ptc_p,
+         rrate_azithro = seror_a / ptr_a,
+         rrate_placebo = seror_p / ptr_p,
          irri = irate_azithro / irate_placebo,
          isrr = rrate_azithro / rrate_placebo)
 
@@ -905,7 +847,7 @@ plot_hr_malaria <- ggplot(data = d_plot_hr, aes(x = antigenf, y = irr,color = an
   geom_point(position = position_nudge(c(-0.1,0.1))) +
   scale_y_continuous(breaks=c(0.2,0.5,1,2,3), trans = "log") +
   scale_color_manual(values = c("black",cbpal[2])) +
-  labs(x=NULL,y="hazard ratio\nazithromycin / placebo") +
+  labs(x=NULL,y="HR or IRR\nazithromycin / placebo") +
   coord_flip() +
   theme_minimal() +
   theme(
@@ -971,7 +913,7 @@ plot_hr_enterics <- ggplot(data = d_plot_hr, aes(x = antigenf, y = irr,color = a
   geom_point(position = position_nudge(c(-0.1,0.1))) +
   scale_y_continuous(breaks=c(0.5,1,1.5,2), trans = "log") +
   scale_color_manual(values = c("black",cbpal[2])) +
-  labs(x=NULL,y="hazard ratio\nazithromycin / placebo") +
+  labs(x=NULL,y="HR or IRR\nazithromycin / placebo") +
   coord_flip() +
   theme_minimal() +
   theme(
