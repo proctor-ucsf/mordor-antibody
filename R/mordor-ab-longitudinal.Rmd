@@ -718,29 +718,44 @@ irr_ests <- rate_ests_by_arm %>%
 ## Summary table - seroconversion rates
 ```{r summary irr table}
 
-knitr::kable(irr_ests %>% select(antigenf,ni_a,nit_a,seroi_a,seroi_lb_a,seroi_ub_a,ni_p,nit_p,seroi_p,seroi_lb_p,seroi_ub_p,irr,irr_lb,irr_ub),
+#-----------------------------
+# format rates and IRRs for
+# printing
+# put malaria on top
+#-----------------------------
+irr_ests_tab <- irr_ests[c(8:16,1:7),] %>%
+  mutate(seroi_a_print = paste0(sprintf("%1.2f",seroi_a)," (",sprintf("%1.2f",seroi_lb_a),", ",sprintf("%1.2f",seroi_ub_a),")"),
+         seroi_p_print = paste0(sprintf("%1.2f",seroi_p)," (",sprintf("%1.2f",seroi_lb_p),", ",sprintf("%1.2f",seroi_ub_p),")"),
+         irr_print = paste0(sprintf("%1.2f",irr)," (",sprintf("%1.2f",irr_lb),", ",sprintf("%1.2f",irr_ub),")"),
+         
+         seror_a_print = paste0(sprintf("%1.2f",seror_a)," (",sprintf("%1.2f",seror_lb_a),", ",sprintf("%1.2f",seror_ub_a),")"),
+         seror_p_print = paste0(sprintf("%1.2f",seror_p)," (",sprintf("%1.2f",seror_lb_p),", ",sprintf("%1.2f",seror_ub_p),")"),
+         srr_print = paste0(sprintf("%1.2f",srr)," (",sprintf("%1.2f",srr_lb),", ",sprintf("%1.2f",srr_ub),")"),
+         )
+
+knitr::kable(irr_ests_tab %>% select(antigenf,ni_a,nit_a,seroi_a_print,ni_p,nit_p,seroi_p_print,irr_print),
              caption = "Seroconversion rates estimated longitudinally among children in MORDOR Niger, 2015 - 2018.",
-             col.names = c("Pathogen, antigen", "N events","Person-Years","Rate per year","min 95", "max 95","N events","Person-Years","Rate per year","min 95", "max 95", "IRR", "min 95", "max 95"), 
+             col.names = c("Pathogen, antigen", "N events","Person-Years","Rate per year (95% CI)","N events","Person-Years","Rate per year (95% CI)", "IRR (95% CI)"), 
              digits = 2,
-             align = "lrrcccrrcccccc") %>%
+             align = "lrrcrrcc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Azithromycin" = 5,  "Placebo" = 5, " " = 3)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 8) %>%
-  kableExtra::group_rows(group_label = "Malaria", start_row = 8, end_row = 16) 
+  add_header_above(c(" " = 1, "Azithromycin" = 3,  "Placebo" = 3, " " = 1)) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 1, end_row = 9) %>%
+  kableExtra::group_rows(group_label = "Bacteria & protozoans", start_row = 10, end_row = 16) 
 
 ```
 ## Summary table - seroreversion rates
 ```{r summary srr table}
 
-knitr::kable(irr_ests %>% select(antigenf,nr_a,nrt_a,seror_a,seror_lb_a,seror_ub_a,nr_p,nrt_p,seror_p,seror_lb_p,seror_ub_p,srr,srr_lb,srr_ub),
+knitr::kable(irr_ests_tab %>% select(antigenf,nr_a,nrt_a,seror_a_print,nr_p,nrt_p,seror_p_print,srr_print),
              caption = "Seroreversion rates estimated longitudinally among children in MORDOR Niger, 2015 - 2018.",
-             col.names = c("Pathogen, antigen", "N events","Person-Years","Rate per year","min 95", "max 95","N events","Person-Years","Rate per year","min 95", "max 95", "IRR", "min 95", "max 95"), 
+             col.names = c("Pathogen, antigen", "N events","Person-Years","Rate per year (95% CI)","N events","Person-Years","Rate per year (95% CI)", "IRR (95% CI)"), 
              digits = 2,
-             align = "lrrcccrrcccccc") %>%
+             align = "lrrcrrcc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Azithromycin" = 5,  "Placebo" = 5, " " = 3)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 8) %>%
-  kableExtra::group_rows(group_label = "Malaria", start_row = 8, end_row = 16) 
+  add_header_above(c(" " = 1, "Azithromycin" = 3,  "Placebo" = 3, " " = 1)) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 1, end_row = 9) %>%
+  kableExtra::group_rows(group_label = "Bacteria & protozoans", start_row = 10, end_row = 16) 
 
 ```
 
