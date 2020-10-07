@@ -1,0 +1,451 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Breadth of response to malaria antigens with composite analyses"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Assess the breadth of response to _P. falciparum_ antigens with composite analyses that combine information across the entire _P. falciparum_ panel.
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+# filter to P. falciparum antigens
+# filter to post-baseline measurements
+d2 <- d %>%
+  filter(antigen %in% c("pfmsp1","ama","glurp","lsa1","csp","hrp2")) %>%
+  filter(phase > 0) %>%
+  mutate(antigenf = factor(antigenf))
+
+
+```
+
+# Create composite seropositivity indicator
+
+Create an indicator if a child is positive to any one of the P. falciparum antigens.  Also create a count of the number of antigens to which the child is positive.
+
+```{r composite seropositivity indicator}
+d3 <- d2 %>%
+  group_by(childid,phase) %>%
+  mutate(nantigens = sum(seropos),
+         seropos = max(seropos),
+         ) %>%
+  arrange(clusterid,childid,phase) %>%
+  slice(1) %>%
+  mutate(antigenf = "P. falciparum (MSP-1, AMA, GLRUP-Ro, LSA1, CSP, HRP2)") %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos,nantigens)
+
+
+```
+
+
+# Estimate age-dependent seroprevalence by arm
+
+```{r age-dependent seroprevalence by arm}
+
+#-----------------------------
+# create an indicator for 
+# children living in intervention
+# and control communities
+#
+# create a dummy indicator equal
+# to 1 for all communities to zero
+# out the marginal predictions
+# over all community random effects
+#
+# create a factor variable
+# for clusterid (for model)
+#-----------------------------
+d3 <- d3 %>%
+  mutate(tr0 = ifelse(arm == "placebo",1,0),
+         tr1 = ifelse(arm == "azithro",1,0),
+         dummy = 1,
+         clusteridf = factor(clusterid),
+         phasef = factor(phase, levels=c("6","12","24","36"))
+         )
+
+#----------------------------------------
+# fit a GAM model fitting separate
+# splines by age for each arm
+# estimate simulatenous 95% confidence 
+# intervals
+#----------------------------------------
+fitp_age <- mgcv::gam(seropos ~ s(agem,bs="cr",by=tr1) + 
+                        s(agem,bs="cr",by=tr0) + 
+                         s(clusteridf,bs="re",by=dummy), 
+                       family = binomial(link="cloglog"),
+                       data=d3)
+  newd0 <- d3 %>%  mutate(dummy=0, tr0 = 1, tr1 = 0)
+  newd1 <- d3 %>%  mutate(dummy=0, tr1 = 1, tr0 = 0)
+  fit_tr0_ci <- gamCI(m=fitp_age,newdata=newd0,nreps=1000)
+  fit_tr1_ci <- gamCI(m=fitp_age,newdata=newd1,nreps=1000)
+  fit_ci <- bind_rows(fit_tr0_ci,fit_tr1_ci)
+
+# convert linear predictor to prevalence
+fitp_age2 <- fit_ci %>%
+  mutate(arm = ifelse(tr1==1,"azithro","placebo"),
+         arm = factor(arm,levels = c("placebo","azithro"))) %>%
+  mutate(fit = cloglogfn(fit),
+         uprP = cloglogfn(uprP),
+         lwrP = cloglogfn(lwrP),
+         uprS = cloglogfn(uprS),
+         lwrS = cloglogfn(lwrS),
+         )  
+
+
+```
+
+
+# Age-seroprevalence figure
+
+Seroprevalence figure. 
+
+```{r age-dependent seroprevalence by arm figure malaria, warning = FALSE}
+
+#-----------------------------
+# plot age-dependent seroprev
+# by arm for malaria
+#-----------------------------
+fitp_malaria<- fitp_age2 %>%
+  mutate(antigenf = factor(antigenf))
+
+#-----------------------------
+# create a bounding box
+# to shade ages used in
+# the primary analysis
+# and in age-dependent FOI
+# estimation
+#-----------------------------
+d_shade_box <- data.frame(antigenf = levels(fitp_malaria$antigenf)) %>%
+  mutate(minX = 12, 
+         maxX = 60,
+         arm = "placebo",
+         antigenf = factor(antigenf,levels(fitp_malaria$antigenf))
+         )
+
+pcols <- cbpal[c(2,6)]
+
+plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
+  # add shade box
+  geom_rect(data=d_shade_box, inherit.aes = FALSE, aes(xmin = minX, xmax = maxX, ymin = 0, ymax = 1), alpha=0.1) +
+  # approximate pointwise 95% CIs
+  # geom_ribbon(aes(ymin = lwrP, ymax = uprP), color = NA, alpha = 0.3) +
+  # spline fits
+  geom_line() +
+  # plot aesthetics
+  annotate("text",x=36,y=0.95,label="placebo",color=pcols[1],hjust=1) +
+  annotate("text",x=36,y=0.75,label="azyithromycin",color=pcols[2],hjust=0) +
+  scale_y_continuous(breaks = seq(0,1,by=0.2), labels = sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
+  scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=3)) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  coord_cartesian(ylim = c(0,1.04), xlim = c(0,60)) +
+  labs(x = "age, months", y = expression(paste(italic("P. falciparum")," IgG seroprevalence (%)"))) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "none"
+  )
+plot_age_seroprev_malaria
+
+ggsave(here("figures","mordor-ab-age-curves-malaria-composite.png"),plot_age_seroprev_malaria, device = "png", width = 4, height = 4)
+
+```
+
+
+# Average effects of intervention
+
+Estimate average difference in seroprevalence and the relative reduction in force of infection. Limit the analysis to ages 12-59 months to avoid maternal IgG contributions.
+
+
+```{r seroprev by arm}
+#-----------------------------
+# limit to children older than
+# 12 months
+#-----------------------------
+d4 <- d3 %>%
+  filter(agem >= 12)
+
+
+#-----------------------------
+# tally number of observations
+# by antigen (including composites)
+#-----------------------------
+n_serop <- d4 %>%
+  group_by(antigenf,arm) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
+  pivot_wider(id_cols = c(antigenf), names_from = "arm", values_from = nobs) %>%
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
+
+#-----------------------------
+# estimate seroprevalence by arm
+# and difference in seroprevalence
+#-----------------------------
+mu_serop <- d4 %>%
+  group_by(antigenf,arm) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = c(antigenf), names_from = "arm", values_from = mean_serop) %>%
+  mutate(diff = azithro - placebo)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_serop <- left_join(n_serop, mu_serop, by=c("antigenf"))
+```
+
+
+
+```{r bootstrap mean seropos diff}
+#-----------------------------
+# bootstrap resample communities
+# with replacement to estimate
+# 95% CIs for difference in seroprev
+#-----------------------------
+set.seed(123)
+nreps <- 1000
+ncl <- length(unique(d4$clusterid))
+bsamp <- matrix(sample(unique(d4$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
+d_serop_boot <- d4 %>% select(clusterid,antigenf,arm,seropos)
+mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
+  
+  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+  
+  di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
+                  d_serop_boot, by = "clusterid")
+  di %>%
+  group_by(antigenf,arm) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_serop) %>%
+  mutate(diff = azithro - placebo, 
+         bootrep = bi)
+
+}
+
+```
+
+```{r mean seroprev bootstrap cis}
+#-----------------------------
+# calculate percentile 95%
+# CIs from the bootstrap
+# distribution merge to estimates
+#-----------------------------
+mu_serop_ci <- mu_serop_boot %>%
+  group_by(antigenf) %>%
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
+         mean_a_lb = quantile(azithro, probs = 0.025),
+         mean_a_ub = quantile(azithro, probs = 0.975),
+         diff_bmean = mean(diff),
+         diff_bse = sd(diff),
+         diff_lb = quantile(diff, probs = 0.025),
+         diff_ub = quantile(diff, probs = 0.975)) %>%
+  select(antigenf,starts_with("mean_"), starts_with("diff_")) %>%
+  slice(1)
+  
+mu_serop2 <- mu_serop %>%
+  left_join(mu_serop_ci, by = "antigenf")
+  
+```
+
+```{r permutation p-values seroprev}
+#-----------------------------
+# estimate permutation p-values
+# for the difference in seroprev
+#
+# pooling over phase 6+
+#
+# conduct the permutation
+# test on unweighted cluster
+# level means
+#-----------------------------
+clmeans_serop <- d4 %>% 
+    group_by(clusterid,arm,antigenf) %>%
+    summarize(mean_serop = mean(seropos), .groups = "keep")
+
+set.seed(34527)
+permute_serop <- foreach(abi = unique(d4$antigenf), .combine = rbind) %do% {
+  di <- clmeans_serop %>% filter(antigenf == abi)
+  pti <- oneway_test(mean_serop ~ arm, data= clmeans_serop,subset = clmeans_serop$antigenf==abi, distribution = "exact", alternative = "two.sided")
+  data.frame(antigenf = abi, permute_p = pvalue(pti))
+  }
+
+```
+
+## Table of results
+```{r seroprev means table}
+mu_serop_table <- mu_serop2 %>%
+  ungroup() %>%
+  left_join(permute_serop, by = "antigenf") %>%
+  mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
+  select(antigenf,placebo, azithro, diff_ci, permute_p)
+
+knitr::kable(mu_serop_table,
+             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
+             digits = c(0,2,2,0,3),
+             align = "lcccc") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
+  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
+  footnote(
+    symbol=c("Exact permutation P-value.")
+  )
+
+```
+
+# Force of infection by arm
+
+Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence.
+
+We use a generalized linear model with a complementary log-log link fit with current status, age-prevalence data, equivalent to a proportional hazards model. We model the baseline hazard in age using a semi-parametric, cubic spline, $g(\cdot)$, and include a binary indicator for treatment group. Let $A$ be a child's age and let $T$ be a binary indicator for azithromycin treatment. The model is:
+
+\begin{equation}
+  \log - \log(1-P(Y|A,T)) = g(A) + \beta X
+\end{equation}
+
+
+The hazard or force of infection at age $a$ is: $\lambda(a) = F'(a)/(1-F(a))$. From the definition of the hazard, we have: 
+
+$1- F(a) = \exp [ - \int_0^a \lambda(a) da ]$ and $\int_0^a \lambda(a) da = - \log [1-F(a)]$.
+
+This is the cumulative hazard. The average hazard per year (units of $a$) also divided $-\log[1-F(a)]$ by $a$.  So, all of the information is embedded in the cumulative distribution function, $F(a)$, which here is the age-dependent seroprevalence curve. 
+
+The average hazard over the age period $a_1$ to $a_2$ is:
+
+\begin{equation}
+  \int_{a_1}^{a_2} \lambda(a) da = \frac{\log[1-F(a_1)]-\log[1-F(a_2)]}{a_2 - a_1}
+\end{equation}
+
+```{r FOI  estimates}
+
+
+set.seed(123)
+
+gfit <- gam(seropos ~ s(agem, bs="cr") + arm +
+              s(clusteridf, bs = "re",by=dummy), 
+            data=d4,
+                family=binomial(link="cloglog"))
+gsum <- summary(gfit)
+    # estimate average seroconversion rate by arm
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(d4$agem),max(d4$agem)), arm = "placebo", dummy=0, clusteridf = "C1")
+    newd1 <- data.frame(agem=c(min(d4$agem),max(d4$agem)), arm = "azithro", dummy=0, clusteridf = "C1")
+    lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(d4$agem),a2=max(d4$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(d4$agem),a2=max(d4$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit$coefficients[2]))
+    loghr_se <-as.numeric(gsum$se[2])
+    # return the results
+foi_ests <- data.frame(antigenf = unique(d4$antigenf),
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se)
+                      )
+
+
+foi_ests_tab <- foi_ests %>%
+  mutate(lambda0c = paste0(sprintf("%1.2f",lambda0*12)," (",
+                            sprintf("%1.2f",lambda0_min95*12),", ", 
+                            sprintf("%1.2f",lambda0_max95*12),")"),
+         lambda1c = paste0(sprintf("%1.2f",lambda1*12)," (", 
+                            sprintf("%1.2f",lambda1_min95*12),", ", 
+                            sprintf("%1.2f",lambda1_max95*12),")"),
+         hrc = paste0(sprintf("%1.2f",hr)," (",
+                       sprintf("%1.2f",hr_min95),", ",
+                       sprintf("%1.2f",hr_max95),")")
+         )
+
+knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
+             caption="Average seroconversion rate (SCR) per year estimated from age-structured seroprevalence",
+             align = "lccc",
+             col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)"),
+             row.names = FALSE)  %>%
+  kable_styling(bootstrap_options = "striped",full_width = TRUE)
+
+```
+
+
+# Estimate the cumulative number of antigens positive by age
+
+```{r plot n antigen positive by age}
+
+d_agecat <- d3 %>%
+  mutate(agecat = cut(agem,breaks = c(-0.1,12,24,36,48,60)),
+         agecat = factor(agecat,levels = c("(-0.1,12]","(12,24]","(24,36]","(36,48]",  "(48,60]"), labels = c("<1", "1","2","3","4"))) 
+
+pcols <- cbpal[c(2,6)]
+plot_nantigens_by_age <- ggplot(data = d_agecat, aes(x = agecat, y = nantigens,  color = arm, fill = arm)) +
+  # geom_point(alpha = 0.1, color = "black") +
+  # geom_smooth(se = FALSE) +
+  # geom_jitter(aes(group = arm),width=0.1,alpha=0.1) +
+  geom_boxplot(width = 0.5, outlier.shape = NA,alpha = 0.3) +
+  scale_y_continuous(breaks = 0:6) +
+  scale_color_manual(values = pcols) +
+  scale_fill_manual(values = pcols) +
+  labs(x = "age (years completed)", y = "number of P. falciparum antigens positive") +
+  coord_cartesian(ylim=c(0,6)) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+
+plot_nantigens_by_age
+
+
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
