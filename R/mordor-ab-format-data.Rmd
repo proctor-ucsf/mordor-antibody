@@ -818,7 +818,7 @@ dtr2 <- dtr %>%
 #-------------------------------
 dchids <- d11 %>%
   ungroup() %>%
-  select(childid, clusterid) %>%
+  select(childid, clusterid, arm) %>%
   group_by(childid) %>%
   slice(1)
 
@@ -827,8 +827,9 @@ dtr3 <- dtr2 %>%
   ungroup() %>%
   group_by(cluster_name) %>%
   tidyr::fill(clusterid, .direction = "downup") %>%
+  tidyr::fill(arm, .direction = "downup") %>%
   ungroup() %>%
-  select(clusterid,phase,childid,agem,female,trdate,treated,dose)
+  select(clusterid,arm,phase,childid,agem,female,trdate,treated,dose)
 
 
 ```
