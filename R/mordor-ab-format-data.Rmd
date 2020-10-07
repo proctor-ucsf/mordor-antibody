@@ -221,7 +221,6 @@ md4 <- md3 %>%
          agem = ifelse(agem>59 & agemosblood_ <=agem,agemosblood_, agem))
 ```
 
-
 # Merge DBS with morbidity data
 
 Merge the two datasets
@@ -770,6 +769,79 @@ d11 <- d10 %>%
 summary(d11)
 write_rds(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
 write_csv(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
+
+```
+
+# Format treatment data (timing, coverage)
+
+Treatment coverage data are stored in a separate file from the morbidity data. Here we read in the treatment data and format it for analysis.
+
+```{r read in treatment data}
+#-------------------------------
+# read in the raw file
+#-------------------------------
+dtr <-read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger-long-dedupe-forYing.csv")
+
+#-------------------------------
+# limit data to morbidity trial
+# communities (mortalityonly999)
+# and to children eligible for
+# treatment (eligx)
+# 
+# format a few variables then
+# limit to relevant vars
+#-------------------------------
+dtr2 <- dtr %>%
+  filter(mortalityonly999 == 0) %>%
+  filter(eligx == 1) %>%
+  # identify children who were treated based on txstatusx
+  mutate(treated = ifelse(txstatusx == 1, 1, 0)) %>%
+  # convert treatment date from Stata dates into R
+  mutate(trdate = as.Date(newccdatex, origin = "1960-01-01")) %>%
+  # format cluster names for merge
+  mutate(cluster_name = str_to_upper(randomunit999)) %>%
+  # limit to relevant vars
+  select(cluster_name,dupwpid_a,childid=masterperson, phase, agem = agex, female = femalex, trdate, treated, dose=dosex)
+
+#-------------------------------
+# grab the community ID variables 
+# created above for the morbidity data
+# the community names do not match 
+# between these data sources (!)
+# reinforcing the importance of
+# creating a standard ID variable
+#
+# use individiual child IDs to join 
+# then fill in cluster level
+# information for any children
+# not in the morbidity dataset
+#-------------------------------
+dchids <- d11 %>%
+  ungroup() %>%
+  select(childid, clusterid) %>%
+  group_by(childid) %>%
+  slice(1)
+
+dtr3 <- dtr2 %>%
+  left_join(dchids, by=c("childid")) %>%
+  ungroup() %>%
+  group_by(cluster_name) %>%
+  tidyr::fill(clusterid, .direction = "downup") %>%
+  ungroup() %>%
+  select(clusterid,phase,childid,agem,female,trdate,treated,dose)
+
+
+```
+
+## Save the treatment dataset
+
+```{r save treatment data}
+#-------------------------------
+# summarize and save the treatment data
+#-------------------------------
+summary(dtr3)
+write_rds(dtr3,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.rds")
+write_csv(dtr3,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.csv")
 
 ```
 
