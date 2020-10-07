@@ -281,7 +281,6 @@ d4 <- d4 %>%
   left_join(newids, by = "dbsid") %>%
   mutate(childid = ifelse(is.na(childid),childid_recode,childid))
 
-
 #-------------------------------
 # For each study cluster, identify
 # the earliest treatment date in
@@ -305,6 +304,7 @@ d_firsttr <- d_firsttr %>%
          diff_phase = ifelse(phase == 0, 0, diff_phase)) 
 
 d4 <- left_join(d4,d_firsttr, by = c("clusterid","phase"))
+
 
 #-------------------------------
 # Identify children who were
@@ -760,7 +760,7 @@ d10 <- d9 %>%
 #-------------------------------
 d11 <- d10 %>%
   select(clusterid,phase,arm,childid,agem,agem_start, agem_start_under6, sex, 
-         testdate,dose,trdate,med_trdate,diff_phase0,diff_phase,
+         testdate,
          wet_start,wet_end,season,
          pf_thicksmear,pf_density,pf_gameto,
          dbsid,type,well,pathogen,antigen,antigenf,
