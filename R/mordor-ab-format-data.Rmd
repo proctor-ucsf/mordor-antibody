@@ -816,9 +816,9 @@ dtr2 <- dtr %>%
 # information for any children
 # not in the morbidity dataset
 #-------------------------------
-dchids <- d11 %>%
+dchids <- d10 %>%
   ungroup() %>%
-  select(childid, clusterid, arm) %>%
+  select(childid, clusterid, morbidity_cluster_name = cluster_name, arm) %>%
   group_by(childid) %>%
   slice(1)
 
@@ -827,9 +827,30 @@ dtr3 <- dtr2 %>%
   ungroup() %>%
   group_by(cluster_name) %>%
   tidyr::fill(clusterid, .direction = "downup") %>%
+  tidyr::fill(morbidity_cluster_name, .direction = "downup") %>%
   tidyr::fill(arm, .direction = "downup") %>%
-  ungroup() %>%
+  ungroup() 
+#-------------------------------
+# print a list of cluster IDs
+# and cluster names from the
+# treatment data and morbidity
+# data, just in case
+# it might be useful
+#-------------------------------
+dtr_cnames <- dtr3 %>%
+  group_by(clusterid) %>%
+  select(clusterid, treatment_cluster_name = cluster_name, morbidity_cluster_name) %>%
+  slice(1) 
+
+knitr::kable(dtr_cnames) %>% kableExtra::kable_styling(bootstrap_options = "striped")
+
+
+#-------------------------------
+# restrict to relevant
+# variables
+dtr4 <- dtr3 %>%
   select(clusterid,arm,phase,childid,agem,female,trdate,treated,dose)
+
 
 
 ```
@@ -840,9 +861,9 @@ dtr3 <- dtr2 %>%
 #-------------------------------
 # summarize and save the treatment data
 #-------------------------------
-summary(dtr3)
-write_rds(dtr3,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.rds")
-write_csv(dtr3,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.csv")
+summary(dtr4)
+write_rds(dtr4,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.rds")
+write_csv(dtr4,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.csv")
 
 ```
 
