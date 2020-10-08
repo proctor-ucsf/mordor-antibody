@@ -1,0 +1,307 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "CONSORT participant flow"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Estimate the number of children measured in each round to summarize in a CONSORT flow diagram.
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+#-------------------------------
+# drop the trachoma, strongyloides, 
+# and GST negative control values
+#-------------------------------
+d1 <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf))
+
+
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages without any
+# variation in antibody levels
+# (esp. enterics, which become saturated)
+#
+# Enterics: 6 mo - 24
+# (except for salmonella, strep A)
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+d2 <- d1 %>%
+  filter(agem >= 6) %>%
+  mutate(agedrop = case_when(
+    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+    TRUE ~ 0
+  )
+         )
+
+```
+
+# Summarize the number of measurements by phase and arm
+
+## Total measurements by phase and arm (and overall)
+
+Total samples by phase and arm
+
+```{r cross tab of n by arm}
+#-----------------------------
+# summarize total samples
+# analyzed for IgG responses
+# by phase and arm
+#-----------------------------
+d_n <- d1 %>%
+  filter(antigen=="vsp3" & !is.na(logmfi))
+
+dim(d_n)
+table(d_n$phase)
+table(d_n$arm)
+table(d_n$phase,d_n$arm)
+```
+
+## Ages 6-24 months (enterics)
+
+Number of samples by phase and arm
+
+```{r cross tab of n by arm 6 to 24 months}
+#-----------------------------
+# summarize samples among 
+# children ages 6-24 months
+#-----------------------------
+d_n2 <- d2 %>%
+  filter(antigen == "vsp3" & !is.na(logmfi) & agedrop == 0) 
+
+dim(d_n2)
+table(d_n2$phase)
+table(d_n2$arm)
+table(d_n2$phase,d_n2$arm)
+```
+
+Total samples by arm, post-baseline
+
+```{r total samples 6 to 24 months post-treatment}
+#-----------------------------
+# summarize totals post-treatment
+#-----------------------------
+dim(d_n2 %>% filter(phase>0))
+table(d_n2$arm[d_n2$phase>0])
+
+```
+
+## Ages 12-59 months (malaria)
+
+Number of samples by phase and arm
+```{r cross tab of n by arm 12 to 59 months}
+#-----------------------------
+# summarize samples among 
+# children ages 6-24 months
+#-----------------------------
+d_n3 <- d2 %>%
+  filter(antigen == "pfmsp1" & !is.na(logmfi) & agedrop == 0) 
+
+dim(d_n3)
+table(d_n3$phase)
+table(d_n3$arm)
+table(d_n3$phase,d_n3$arm)
+```
+
+Total samples by arm, post-baseline
+```{r total samples 12 to 59 months post-treatment}
+#-----------------------------
+# summarize totals post-treatment
+#-----------------------------
+dim(d_n3 %>% filter(phase>0))
+table(d_n3$arm[d_n3$phase>0])
+
+```
+
+# Summarize number of children
+
+## Identify total number of children enrolled
+
+Start with total enrolled
+
+```{r summarize total children enrolled}
+#------------------------------------
+# Identify unique children -- Total
+#------------------------------------
+dchild <- d1 %>%
+  ungroup() %>%
+  group_by(childid) %>%
+  slice(1)
+
+dim(dchild)
+table(dchild$arm)
+
+```
+
+Then identify number excluded because of <6 months (enterics) 
+
+```{r summarize children excluded under 6 months}
+#------------------------------------
+# identify children excluded < 6 months
+#------------------------------------
+dchild6 <- d1 %>%
+  filter(agem<6 & antigen=="vsp3") %>%
+  group_by(childid) %>%
+  slice(1)
+
+dim(dchild6)
+table(dchild6$arm)
+
+```
+
+Identify number excluded because of <12 months (malaria) 
+
+```{r summarize children excluded under 12 months}
+#------------------------------------
+# identify children excluded < 12 months
+#------------------------------------
+dchild12 <- d1 %>%
+  filter(agem<12 & antigen=="ama") %>%
+  group_by(childid) %>%
+  slice(1)
+
+dim(dchild12)
+table(dchild12$arm)
+
+```
+
+Identify number excluded because >24 months (enterics) 
+
+```{r summarize children excluded over 24 months}
+#------------------------------------
+# identify children excluded >24 months
+#------------------------------------
+dchild24 <- d1 %>%
+  filter(agem>24 & antigen=="vsp3") %>%
+  group_by(childid) %>%
+  slice(1)
+
+dim(dchild24)
+table(dchild24$arm)
+
+```
+
+# Summarize treatment coverage by phase and arm
+
+Read in treatement data
+
+```{r read in treatment data}
+dtr <- read_rds(here("data","mordor-ab-treatment.rds"))
+
+```
+
+## Summarize children per cluster
+
+For each phase, summarize the mean number of children per cluster and the SD of cluster means
+
+```{r mean and sd children per cluster}
+#-----------------------------
+# sum the number of children
+# by cluster and by phase
+#-----------------------------
+dnc <- dtr %>%
+  group_by(phase,clusterid,arm) %>%
+  summarize(nchildren = n(), .groups = "keep") %>%
+  slice(1)
+
+dnc_tab <- dnc %>%
+  ungroup() %>%
+  group_by(arm,phase) %>%
+  summarize(mean_children = mean(nchildren),
+            sd_children = sd(nchildren),
+            .groups = "keep") %>%
+  arrange(arm,phase)
+
+knitr::kable(dnc_tab,
+             digits = 0) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped")
+
+```
+
+## Summarize treatment coverage
+
+For each phase, summarize the average treatment coverage and the SD of cluster averages
+
+```{r mean and sd treatment coverage}
+#-----------------------------
+# sum the number of eligible
+# children and treated children
+# per cluster
+#-----------------------------
+dcov <- dtr %>%
+  group_by(phase,clusterid,arm) %>%
+  summarize(trcoverage = mean(treated),
+            .groups = "keep") %>%
+  slice(1) 
+
+# there is no treatment coverage data in community C51 in phase 6
+# (consistent w/ the morbidity monitoring data)
+# remove that community from the estimates
+
+dcov_tab <- dcov %>%
+  ungroup() %>%
+  # remove community C51 in phase 6
+  filter(!(clusterid=="C51" & phase==6)) %>%
+  group_by(arm,phase) %>%
+  summarize(mean_coverage = mean(trcoverage)*100,
+            sd_coverage = sd(trcoverage)*100,
+            .groups = "keep") %>%
+  arrange(arm,phase)
+
+knitr::kable(dcov_tab,
+             digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped")
+
+```
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
