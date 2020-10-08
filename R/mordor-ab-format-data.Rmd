@@ -273,13 +273,18 @@ d4 <- d4 %>%
 # childid (masterperson_mcd is missing)
 #
 # for these children assign
-# a random ID
+# a random ID. Also ensure
+# the age used is the agemosblod_
+# variable (others are missing)
 #-------------------------------
 table(is.na(d4$childid[d4$antigen=="vsp3"]))
 newids <- data.frame(dbsid = d4$dbsid[is.na(d4$childid) & d4$antigen=="vsp3"],childid_recode = paste0("childid recode ",1:19),stringsAsFactors = FALSE)
 d4 <- d4 %>%
   left_join(newids, by = "dbsid") %>%
-  mutate(childid = ifelse(is.na(childid),childid_recode,childid))
+  mutate(
+    agem = ifelse(is.na(childid), agemosblood_, agem),
+    childid = ifelse(is.na(childid),childid_recode,childid)
+    )
 
 #-------------------------------
 # For each study cluster, identify
@@ -453,7 +458,7 @@ d6 <- d5 %>%
 
 
 Work with log10 values
-```{r log10 mfi}
+```{r log10 mfi, warning=FALSE}
 #-----------------------------
 # work with log10 MFI values
 # for MFI values <=0, set to 1
