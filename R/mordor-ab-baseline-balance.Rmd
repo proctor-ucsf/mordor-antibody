@@ -58,28 +58,6 @@ d2 <- d %>%
   filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
   mutate(antigenf = factor(antigenf))
 
-#-------------------------------
-# age restrictions based on 
-# age-antibody curves
-# to exclude ages without any
-# variation in antibody levels
-# (esp. enterics, which become saturated)
-#
-# Enterics: 6 mo - 24
-# (except for salmonella, strep A)
-#
-# Malaria antigens: 12 - 59 mo
-#-------------------------------
-# d2 <- d2 %>%
-#   filter(agem >= 6) %>%
-#   mutate(agedrop = case_when(
-#     antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
-#     antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
-#     TRUE ~ 0
-#   )
-#          ) %>%
-#   filter(agedrop == 0)
-
 ```
 
 # Create composite seropositivity indicators
