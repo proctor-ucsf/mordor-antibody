@@ -1,0 +1,216 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Assess baseline balance"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Estimate the number of children measured in each round to summarize in a CONSORT flow diagram.
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+#-------------------------------
+# drop the trachoma, strongyloides, 
+# and GST negative control values
+#-------------------------------
+d2 <- d %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages without any
+# variation in antibody levels
+# (esp. enterics, which become saturated)
+#
+# Enterics: 6 mo - 24
+# (except for salmonella, strep A)
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+# d2 <- d2 %>%
+#   filter(agem >= 6) %>%
+#   mutate(agedrop = case_when(
+#     antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+#     antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+#     TRUE ~ 0
+#   )
+#          ) %>%
+#   filter(agedrop == 0)
+
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+Then bind those to the original data frame to create a seropositivity dataset for analyses.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- d2 %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phase) %>%
+  mutate(seropos = max(seropos)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  )) %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
+
+
+```
+
+```{r create seropositivity dataset, warning=FALSE}
+dp <- d2 %>%
+  # drop pathogens w/ composite indicators
+  filter(!pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  # add composite indicators
+  bind_rows(d_enteric_comps) %>%
+  # create new factor levels that includes composite indicators
+  mutate(antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Cholera CTB",
+    "Salmonella LPS B or D",
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+   levels(d2$antigenf)[11:20]) )
+         ) %>%
+  # drop extra variables (MFI doesn't correspond to composite seropos so drop)
+  select(-mfi,-logmfi)
+
+```
+
+# Reshape data for making table
+
+Reshape the antibody data to wide format. Create age category variable
+
+```{r reshape data wide}
+dp_wide <- dp %>%
+  select(clusterid,arm,phase,childid,agem,sex,antigenf,seropos) %>%
+  mutate(seropos = ifelse(seropos == 1 , "Yes", "No"),
+         seropos = factor(seropos)) %>%
+  pivot_wider(id_cols = c("clusterid","arm","phase","childid","agem","sex"), names_from = antigenf, values_from = seropos) %>%
+  mutate(agecat = cut(agem, breaks = c(-1,11,23,35,47,60)),
+         agecat = factor(agecat, 
+                         levels=c("(-1,11]","(11,23]","(23,35]","(35,47]","(47,60]"),
+                         labels = c("<1 y", "1 y", "2 y", "3 y", "4 y")),
+         arm = factor(arm, levels=c("placebo","azithro"),labels = c("Placebo","Azithromycin"))
+         )
+
+```
+
+
+# Baseline balance table.
+
+Note that for baseline seroprevalence estimates, the antibody responses are limited to the age ranges used in the primary analysis: malaria (12-59 months), enterics (6-24 months), Salmonella and Step (6-59 months)
+
+```{r baseline balance table}
+
+#----------------------------------
+# Table for age and sex, 
+# across all children at baseline
+#----------------------------------
+table1(~ agecat + sex  | arm, 
+       data=dp_wide %>% filter(phase == 0), 
+       overall = FALSE
+       )
+
+#----------------------------------
+# Table for malaria seroprevalence
+# ages 12-59 months
+#----------------------------------
+table1(~ `P. falciparum MSP-1` +
+         `P. falciparum AMA` +
+         `P. falciparum GLURP-Ro` +
+         `P. falciparum LSA1` + 
+         `P. falciparum CSP` +
+         `P. falciparum HRP2` +
+         `P. malariae MSP-1` +
+         `P. ovale MSP-1` +
+         `P. vivax MSP-1` 
+       | arm, 
+       data=dp_wide %>% filter(phase == 0 & agem>=12), 
+       overall = FALSE
+       )
+
+#----------------------------------
+# Table for enterics seroprevalence
+# ages 6-24 months
+#----------------------------------
+table1(~ `Campylobacter p18 or p39` +
+         `ETEC LTB` +
+         `Cholera CTB` +
+         `Cryptosporidium Cp17 or Cp23` +
+         `Giardia VSP-3 or VSP-5` 
+       | arm, 
+       data=dp_wide %>% filter(phase == 0 & agem>=6 & agem<=24), 
+       overall = FALSE
+       )
+
+#----------------------------------
+# Table for salmonella and strep 
+# seroprevalence
+# ages 6-59 months
+#----------------------------------
+table1(~ `Salmonella LPS B or D` +
+         `Streptococcus A` 
+       | arm, 
+       data=dp_wide %>% filter(phase == 0 & agem>=6), 
+       overall = FALSE
+       )
+
+
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
