@@ -1,0 +1,113 @@
+---
+title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+subtitle: "Assess correlation between ETEC LTB and cholera CTB"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Antibody responses to ETEC labile toxin B subnit (LTB) and cholera toxin B subunit are known to be cross-reactive. Confirm this is the case in these measurements. Based on the results, exclude cholera CTB from the main results because it's difficult to interpret without additional antibody markers.
+
+Arnold BF, et al. Enteropathogen antibody dynamics and force of infection among children in low-resource settings. _eLife_ 8, (2019). https://pubmed.ncbi.nlm.nih.gov/31424386/
+
+Smith NW, Sack RB. 1973. Immunologic cross-reactions of enterotoxins from Escherichia coli and Vibrio cholerae. _Journal of Infectious Diseases_ 127:164–170. DOI: https://doi.org/10.1093/infdis/127.2.164, PMID: 4570128
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis.rds"))
+
+#-------------------------------
+# limit to ETEC and cholera
+#-------------------------------
+d1 <- d %>%
+  filter(antigen %in% c("etec","ctb")) %>%
+  mutate(antigenf = factor(antigenf))
+
+
+
+#-------------------------------
+# reshape the data wide
+# to make it easier to plot
+#-------------------------------
+dmfi <- d1 %>%
+  ungroup() %>%
+  select(childid,phase,agem,antigen,logmfi) %>%
+  pivot_wider(id_cols = c("childid","phase","agem"), names_from = antigen, values_from = logmfi)
+
+```
+
+
+# Correlation between ETEC LTB and cholera CTB
+
+```{r ETEC v CTB figure}
+
+# estimate Spearman rank correlation for printing
+sp_corr <- cor(dmfi$etec,dmfi$ctb, method = "spearman")
+cor_lab <- paste(sprintf("%1.2f",sp_corr))
+
+# custom log labels
+log10labs <- c( 
+  expression(10^1),
+  expression(10^2),
+  expression(10^3),
+  expression(10^4)
+)
+
+plot_etec_ctb <- ggplot(data=dmfi, aes(x = ctb, y = etec)) +
+  geom_point(alpha = 0.2, size = 0.3, color = vircols[5]) +
+  geom_smooth(color = "black",lwd=0.75,se=FALSE, method = "loess") +
+  annotate("text",x=1.1,y=4.25,label = paste("rho ==",deparse(cor_lab)),parse=TRUE, hjust =0) +
+  scale_x_continuous(breaks=1:4,labels = log10labs) +
+  scale_y_continuous(breaks=1:4,labels = log10labs) +
+  labs(x = "Cholera CTB  IgG Luminex Response (MFI-bg)", y = "ETEC LTB IgG Luminex Response (MFI-bg)") +
+  theme_minimal()
+
+plot_etec_ctb
+
+ggsave(filename = here("figures","mordor-ab-etec-v-ctb.png"),plot_etec_ctb, device = "png",width=4, height = 4)
+
+```
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
