@@ -57,6 +57,14 @@ d1 <- d %>%
   mutate(antigenf = factor(antigenf))
 
 #-------------------------------
+# drop cholera CTB because so 
+# highly cross-reactive with ETEC LTB
+#-------------------------------
+d1 <- d1 %>%
+  filter( !antigen %in% c("ctb") ) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
 # drop baseline measurements
 #-------------------------------
 d2 <- d1 %>%
@@ -120,11 +128,10 @@ d_serop <- d2 %>%
   mutate(antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Cholera CTB",
     "Salmonella LPS B or D",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
-   levels(d2$antigenf)[11:20]) )
+   levels(d2$antigenf)[10:19]) )
          ) %>%
   # drop extra variables (MFI doesn't correspond to composite seropos so drop)
   dplyr::select(-mfi,-logmfi,-agedrop)
@@ -285,8 +292,8 @@ permute_mfi <- foreach(abi = levels(d2$antigenf), .combine = rbind) %do% {
 # corrected p-values, nested
 # within enterics and malaria
 #-----------------------------
-bh_p_enterics <- p.adjust(permute_mfi$permute_p[1:11],method = "BH")
-bh_p_malaria <- p.adjust(permute_mfi$permute_p[12:20],method = "BH")
+bh_p_enterics <- p.adjust(permute_mfi$permute_p[1:10],method = "BH")
+bh_p_malaria <- p.adjust(permute_mfi$permute_p[11:19],method = "BH")
 
 ```
 
@@ -300,7 +307,7 @@ mu_mfi_table <- mu_mfi2 %>%
   select(antigenf, placebo, azithro, diff_ci, permute_p) %>%
   mutate(bh_p = c(bh_p_enterics,bh_p_malaria))
 
-knitr::kable(mu_mfi_table %>% slice(1:11),
+knitr::kable(mu_mfi_table %>% slice(1:10),
              col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*","P-value†"), 
              digits = c(0,3,3,0,2,2),
              align = "lcccc") %>%
@@ -410,7 +417,7 @@ ggsave(here("figures","mordor-ab-diff-mfi-enterics.png"),plot_mfi_comp_enterics,
 
 ## Malaria MFI summary table
 ```{r MFI means table malaria}
-knitr::kable(mu_mfi_table %>% slice(12:20),
+knitr::kable(mu_mfi_table %>% slice(11:19),
              col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*","P-value†"), 
              digits = c(0,3,3,0,2,2),
              align = "lcccc") %>%
@@ -605,8 +612,8 @@ permute_serop <- foreach(abi = levels(d_serop$antigenf), .combine = rbind) %do% 
 # corrected p-values, nested
 # within enterics and malaria
 #-----------------------------
-bh_p_enterics <- p.adjust(permute_serop$permute_p[1:7],method = "BH")
-bh_p_malaria <- p.adjust(permute_serop$permute_p[8:16],method = "BH")
+bh_p_enterics <- p.adjust(permute_serop$permute_p[1:6],method = "BH")
+bh_p_malaria <- p.adjust(permute_serop$permute_p[7:15],method = "BH")
 
 ```
 
@@ -620,7 +627,7 @@ mu_serop_table <- mu_serop2 %>%
   select(antigenf,placebo, azithro, diff_ci, permute_p) %>%
   mutate(bh_p = c(bh_p_enterics,bh_p_malaria))
 
-knitr::kable(mu_serop_table %>% slice(1:7),
+knitr::kable(mu_serop_table %>% slice(1:6),
              col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*","P-value†"), 
              digits = 2,
              align = "lcccc") %>%
@@ -728,7 +735,7 @@ ggsave(here("figures","mordor-ab-diff-seroprev-enterics.png"),plot_serop_comp_en
 
 ## Malaria seroprevalence table
 ```{r seroprev means table malaria}
-knitr::kable(mu_serop_table %>% slice(8:16),
+knitr::kable(mu_serop_table %>% slice(7:15),
              col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*","P-value†"), 
              digits = 2,
              align = "lcccc") %>%
@@ -886,8 +893,8 @@ foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
 # corrected p-values, nested
 # within enterics and malaria
 #-----------------------------
-bh_p_enterics <- p.adjust(foi_ests$hr_p[1:7],method = "BH")
-bh_p_malaria <- p.adjust(foi_ests$hr_p[8:16],method = "BH")
+bh_p_enterics <- p.adjust(foi_ests$hr_p[1:6],method = "BH")
+bh_p_malaria <- p.adjust(foi_ests$hr_p[7:15],method = "BH")
 
 ```
 

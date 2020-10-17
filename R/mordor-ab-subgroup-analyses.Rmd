@@ -59,6 +59,14 @@ d2 <- d %>%
          phasef = factor(phase))
 
 #-------------------------------
+# drop cholera CTB because so 
+# highly cross-reactive with ETEC LTB
+#-------------------------------
+d2 <- d2 %>%
+  filter( !antigen %in% c("ctb") ) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
 # drop baseline measurements
 #-------------------------------
 d2 <- d2 %>%
@@ -123,11 +131,10 @@ d_serop <- d2 %>%
   mutate(antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Cholera CTB",
     "Salmonella LPS B or D",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
-   levels(d2$antigenf)[11:20]) )
+   levels(d2$antigenf)[10:19]) )
          ) %>%
   # drop extra variables (MFI doesn't correspond to composite seropos so drop)
   select(-mfi,-logmfi,-agedrop)
@@ -269,8 +276,8 @@ knitr::kable(mu_mfi_table,
              align = "lcccr") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 44) %>%
-  kableExtra::group_rows(group_label = "Malaria", start_row = 45, end_row = 80) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 40) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 41, end_row = 76) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
   )
@@ -297,12 +304,12 @@ pcols <- brewer.pal(9,"PuBuGn")[5:8]
 plot_mfi_diff_phase_enterics <- ggplot(data = mu_mfi_plot2 %>% filter(group!="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
   facet_wrap(antigenf~., ncol=4, nrow = 3) +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
-  geom_point(alpha=0.6) +
-  scale_y_continuous(breaks = seq(-0.6,0.6,by=0.3), labels = sprintf("%1.1f",seq(-0.6,0.6,by=0.3))) +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=1) +
+  geom_point(alpha=1) +
+  scale_y_continuous(breaks = seq(-0.8,0.8,by=0.4), labels = sprintf("%1.1f",seq(-0.8,0.8,by=0.4))) +
   scale_color_manual(values = pcols) +
   labs(x = "study phase (months)", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "A") +
-  coord_cartesian(ylim = c(-0.6,0.6)) +
+  coord_cartesian(ylim = c(-0.8,0.8)) +
   theme(
     legend.position = "none",
     panel.grid.minor = element_blank()
@@ -319,12 +326,12 @@ pcols <- brewer.pal(9,"PuBuGn")[5:8]
 plot_mfi_diff_phase_malaria <- ggplot(data = mu_mfi_plot2 %>% filter(group=="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
   facet_wrap(antigenf~., ncol=3, nrow = 3) +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
-  geom_point(alpha=0.6) +
-  scale_y_continuous(breaks = seq(-0.6,0.6,by=0.3), labels = sprintf("%1.1f",seq(-0.6,0.6,by=0.3))) +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=1) +
+  geom_point(alpha=1) +
+  scale_y_continuous(breaks = seq(-0.8,0.8,by=0.4), labels = sprintf("%1.1f",seq(-0.8,0.8,by=0.4))) +
   scale_color_manual(values = pcols) +
   labs(x = "study phase (months)", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "B") +
-  coord_cartesian(ylim = c(-0.6,0.6)) +
+  coord_cartesian(ylim = c(-0.8,0.8)) +
   theme(
     legend.position = "none",
     panel.grid.minor = element_blank()
@@ -470,8 +477,8 @@ knitr::kable(mu_serop_table,
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 28) %>%
-  kableExtra::group_rows(group_label = "Malaria", start_row = 29, end_row = 64) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 24) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 25, end_row = 60) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
   )
@@ -499,12 +506,12 @@ pcols <- brewer.pal(9,"PuBuGn")[5:8]
 plot_serop_diff_phase_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group!="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
   facet_wrap(antigenf~., ncol=3, nrow = 3) +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
-  geom_point(alpha=0.6) +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=1) +
+  geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
   labs(x = "study phase (months)", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "A") +
-  coord_cartesian(ylim = c(-0.2,0.2)) +
+  coord_cartesian(ylim = c(-0.3,0.3)) +
   theme(
     legend.position = "none",
     panel.grid.minor = element_blank()
@@ -521,12 +528,12 @@ pcols <- brewer.pal(9,"PuBuGn")[5:8]
 plot_serop_diff_phase_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group=="malaria"), aes(x = phasef, y = diff, color = phasef, fill = phasef)) +
   facet_wrap(antigenf~., ncol=3, nrow = 3) +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
-  geom_point(alpha=0.6) +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=1) +
+  geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
   labs(x = "study phase (months)", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "B") +
-  coord_cartesian(ylim = c(-0.2,0.2)) +
+  coord_cartesian(ylim = c(-0.3,0.3)) +
   theme(
     legend.position = "none",
     panel.grid.minor = element_blank()
@@ -681,8 +688,8 @@ knitr::kable(mu_mfi_table,
              align = "lcccr") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 22) %>%
-  kableExtra::group_rows(group_label = "Malaria", start_row = 23, end_row = 40) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 20) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 21, end_row = 38) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
   )
@@ -712,10 +719,10 @@ plot_mfi_diff_age_enterics <- ggplot(data = mu_mfi_plot2 %>% filter(group!="mala
   geom_hline(yintercept = 0, color = "gray60") +
   geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
   geom_point(alpha=0.6) +
-  scale_y_continuous(breaks = seq(-0.6,0.6,by=0.3), labels = sprintf("%1.1f",seq(-0.6,0.6,by=0.3))) +
+  scale_y_continuous(breaks = seq(-0.8,0.8,by=0.4), labels = sprintf("%1.1f",seq(-0.8,0.8,by=0.4))) +
   scale_color_manual(values = pcols) +
   labs(x = "Under 6 months at trial start", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "A") +
-  coord_cartesian(ylim = c(-0.6,0.6)) +
+  coord_cartesian(ylim = c(-0.8,0.8)) +
   theme(
     legend.position = "none",
     panel.grid.minor = element_blank()
@@ -732,8 +739,8 @@ pcols <- brewer.pal(9,"PuBuGn")[7:8]
 plot_mfi_diff_age_malaria <- ggplot(data = mu_mfi_plot2 %>% filter(group=="malaria"), aes(x = agem_start_under6, y = diff, color = agem_start_under6, fill = agem_start_under6)) +
   facet_wrap(antigenf~., ncol=3, nrow = 3) +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
-  geom_point(alpha=0.6) +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=1) +
+  geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.6,0.6,by=0.3), labels = sprintf("%1.1f",seq(-0.6,0.6,by=0.3))) +
   scale_color_manual(values = pcols) +
   labs(x = "Under 6 months at trial start", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "B") +
@@ -884,8 +891,8 @@ knitr::kable(mu_serop_table,
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 14) %>%
-  kableExtra::group_rows(group_label = "Malaria", start_row = 15, end_row = 32) %>%
+  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 12) %>%
+  kableExtra::group_rows(group_label = "Malaria", start_row = 13, end_row = 30) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
   )
@@ -914,12 +921,12 @@ pcols <- brewer.pal(9,"PuBuGn")[7:8]
 plot_serop_diff_age_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group!="malaria"), aes(x = agem_start_under6, y = diff, color = agem_start_under6, fill = agem_start_under6)) +
   facet_wrap(antigenf~., ncol=3, nrow = 3) +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
-  geom_point(alpha=0.6) +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=1) +
+  geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
   labs(x = "under age 6 months at trial start", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "A") +
-  coord_cartesian(ylim = c(-0.2,0.2)) +
+  coord_cartesian(ylim = c(-0.3,0.3)) +
   theme(
     legend.position = "none",
     panel.grid.minor = element_blank()
@@ -936,8 +943,8 @@ pcols <- brewer.pal(9,"PuBuGn")[7:8]
 plot_serop_diff_age_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group=="malaria"), aes(x = agem_start_under6, y = diff, color = agem_start_under6, fill = agem_start_under6)) +
   facet_wrap(antigenf~., ncol=3, nrow = 3) +
   geom_hline(yintercept = 0, color = "gray60") +
-  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=0.6) +
-  geom_point(alpha=0.6) +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.2,alpha=1) +
+  geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
   labs(x = "under age 6 months at trial start", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "B") +

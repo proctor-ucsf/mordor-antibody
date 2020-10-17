@@ -50,7 +50,11 @@ d <- read_rds(here("data","mordor-ab-analysis.rds"))
 
 # drop the trachoma, strongyloides, and GST negative control values
 d2 <- d %>%
-  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  filter(!antigen %in% c("pgp3","ct694","nie","gst")) 
+
+# drop cholera CTB because so highly cross-reactive with ETEC LTB
+d2 <- d2 %>%
+  filter( !antigen %in% c("ctb") ) %>%
   mutate(antigenf = factor(antigenf))
 ```
 
@@ -74,11 +78,10 @@ d_enteric_comps <- d2 %>%
   antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Cholera CTB",
     "Salmonella LPS B or D",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
-   levels(d2$antigenf)[11:20]) )
+   levels(d2$antigenf)[10:19]) )
          ) %>%
   select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
 
@@ -398,9 +401,9 @@ Seroprevalence figure. Use composite estimates for pathogens with multiple antig
 # by arm for enterics
 #-----------------------------
 fitp_enterics <- fitp_age2 %>%
-  filter(pathogen %in% c("ETEC","Cholera","Streptococcus")) %>%
+  filter(pathogen %in% c("ETEC","Streptococcus")) %>%
   bind_rows(fitp_comp_age2) %>%
-  mutate(antigenf = factor(antigenf,levels = c(levels(fitp_comp_age2$antigenf)[1],"ETEC LTB","Cholera CTB",levels(fitp_comp_age2$antigenf)[2:4],"Streptococcus A")))
+  mutate(antigenf = factor(antigenf,levels = c(levels(fitp_comp_age2$antigenf)[1],"ETEC LTB",levels(fitp_comp_age2$antigenf)[2:4],"Streptococcus A")))
 
 #-----------------------------
 # create a bounding box
@@ -459,7 +462,7 @@ pcurve_composite_enterics <- grid.arrange(plot_age_mfi_enterics,
                                           plot_age_seroprev_enterics,
                                           ncol=2,nrow=1,widths=c(2,1.1))
 
-ggsave(here("figures","mordor-ab-age-curves-enterics.png"),pcurve_composite_enterics, device = "png", width = 8, height = 12)
+ggsave(here("figures","mordor-ab-age-curves-enterics.png"),pcurve_composite_enterics, device = "png", width = 8, height = 11)
 
 ```
 
