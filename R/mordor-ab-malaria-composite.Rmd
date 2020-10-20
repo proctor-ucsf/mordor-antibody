@@ -192,6 +192,7 @@ ggsave(here("figures","mordor-ab-age-curves-malaria-composite.png"),plot_age_ser
 
 # Average effects of intervention
 
+## Seroprevalence
 Estimate average difference in seroprevalence and the relative reduction in force of infection. Limit the analysis to ages 12-59 months to avoid maternal IgG contributions.
 
 
@@ -310,7 +311,6 @@ permute_serop <- foreach(abi = unique(d4$antigenf), .combine = rbind) %do% {
 
 ```
 
-## Table of results
 ```{r seroprev means table}
 mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
@@ -330,7 +330,7 @@ knitr::kable(mu_serop_table,
 
 ```
 
-# Force of infection by arm
+## Force of infection
 
 Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence.
 
@@ -410,10 +410,206 @@ knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
 
 ```
 
+# Analyses subset to 12-36 months
+
+This is a post-hoc comparison, restricted to ages 12-36 months. It is a purely exploratory analysis and was not prespecified. It is a follow-up analysis to the observed age-dependent seroprevalence curves fit above.
+
+```{r seroprev by arm 12-36 months}
+#-----------------------------
+# limit to children older than
+# 12 months
+#-----------------------------
+d5 <- d3 %>%
+  filter(agem >= 12 & agem <=36)
+
+
+#-----------------------------
+# tally number of observations
+# by antigen (including composites)
+#-----------------------------
+n_serop1236 <- d5 %>%
+  group_by(antigenf,arm) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
+  pivot_wider(id_cols = c(antigenf), names_from = "arm", values_from = nobs) %>%
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
+
+#-----------------------------
+# estimate seroprevalence by arm
+# and difference in seroprevalence
+#-----------------------------
+mu_serop1236 <- d5 %>%
+  group_by(antigenf,arm) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = c(antigenf), names_from = "arm", values_from = mean_serop) %>%
+  mutate(diff = azithro - placebo)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_serop1236 <- left_join(n_serop1236, mu_serop1236, by=c("antigenf"))
+```
+
+
+
+```{r bootstrap mean seropos diff 12-36 months}
+#-----------------------------
+# bootstrap resample communities
+# with replacement to estimate
+# 95% CIs for difference in seroprev
+#-----------------------------
+set.seed(123)
+nreps <- 1000
+ncl <- length(unique(d5$clusterid))
+bsamp <- matrix(sample(unique(d5$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
+d_serop_boot1236 <- d5 %>% select(clusterid,antigenf,arm,seropos)
+mu_serop_boot1236 <- foreach(bi = 1:nreps, .combine = rbind) %do% {
+  
+  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+  
+  di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
+                  d_serop_boot1236, by = "clusterid")
+  di %>%
+  group_by(antigenf,arm) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_serop) %>%
+  mutate(diff = azithro - placebo, 
+         bootrep = bi)
+
+}
+
+```
+
+
+
+```{r mean seroprev bootstrap cis 12-36 months}
+#-----------------------------
+# calculate percentile 95%
+# CIs from the bootstrap
+# distribution merge to estimates
+#-----------------------------
+mu_serop_ci1236 <- mu_serop_boot1236 %>%
+  group_by(antigenf) %>%
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
+         mean_a_lb = quantile(azithro, probs = 0.025),
+         mean_a_ub = quantile(azithro, probs = 0.975),
+         diff_bmean = mean(diff),
+         diff_bse = sd(diff),
+         diff_lb = quantile(diff, probs = 0.025),
+         diff_ub = quantile(diff, probs = 0.975)) %>%
+  select(antigenf,starts_with("mean_"), starts_with("diff_")) %>%
+  slice(1)
+  
+mu_serop1236 <- mu_serop1236 %>%
+  left_join(mu_serop_ci1236, by = "antigenf")
+  
+```
+
+```{r permutation p-values seroprev 12-36 months}
+#-----------------------------
+# estimate permutation p-values
+# for the difference in seroprev
+#
+# pooling over phase 6+
+#
+# conduct the permutation
+# test on unweighted cluster
+# level means
+#-----------------------------
+clmeans_serop1236 <- d5 %>% 
+    group_by(clusterid,arm,antigenf) %>%
+    summarize(mean_serop = mean(seropos), .groups = "keep")
+
+set.seed(36529)
+permute_serop1236 <- foreach(abi = unique(d5$antigenf), .combine = rbind) %do% {
+  di <- clmeans_serop1236 %>% filter(antigenf == abi)
+  pti <- oneway_test(mean_serop ~ arm, data= clmeans_serop1236,subset = clmeans_serop1236$antigenf==abi, distribution = "exact", alternative = "two.sided")
+  data.frame(antigenf = abi, permute_p = pvalue(pti))
+  }
+
+```
+
+```{r seroprev means table 12-36 months}
+mu_serop_table1236 <- mu_serop1236 %>%
+  ungroup() %>%
+  left_join(permute_serop1236, by = "antigenf") %>%
+  mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
+  select(antigenf,placebo, azithro, diff_ci, permute_p)
+
+knitr::kable(mu_serop_table1236,
+             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*"), 
+             digits = c(0,2,2,0,3),
+             align = "lcccc") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
+  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
+  footnote(
+    symbol=c("Exact permutation P-value.")
+  )
+
+```
+
+```{r FOI  estimates 12-36 months}
+
+
+set.seed(13215)
+
+gfit1236 <- gam(seropos ~ s(agem, bs="cr") + arm +
+              s(clusteridf, bs = "re",by=dummy), 
+            data=d5,
+                family=binomial(link="cloglog"))
+gsum <- summary(gfit1236)
+    # estimate average seroconversion rate by arm
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(d5$agem),max(d5$agem)), arm = "placebo", dummy=0, clusteridf = "C1")
+    newd1 <- data.frame(agem=c(min(d5$agem),max(d5$agem)), arm = "azithro", dummy=0, clusteridf = "C1")
+    lambda0 <- avgFOI(gfit1236, newdata=newd0, a1=min(d5$agem),a2=max(d5$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit1236, newdata=newd1, a1=min(d5$agem),a2=max(d5$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit1236$coefficients[2]))
+    loghr_se <-as.numeric(gsum$se[2])
+    # return the results
+foi_ests1236 <- data.frame(antigenf = unique(d5$antigenf),
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se)
+                      )
+
+
+foi_ests_tab1236 <- foi_ests1236 %>%
+  mutate(lambda0c = paste0(sprintf("%1.2f",lambda0*12)," (",
+                            sprintf("%1.2f",lambda0_min95*12),", ", 
+                            sprintf("%1.2f",lambda0_max95*12),")"),
+         lambda1c = paste0(sprintf("%1.2f",lambda1*12)," (", 
+                            sprintf("%1.2f",lambda1_min95*12),", ", 
+                            sprintf("%1.2f",lambda1_max95*12),")"),
+         hrc = paste0(sprintf("%1.2f",hr)," (",
+                       sprintf("%1.2f",hr_min95),", ",
+                       sprintf("%1.2f",hr_max95),")")
+         )
+
+knitr::kable(foi_ests_tab1236 %>% select(antigenf,lambda0c,lambda1c,hrc),digits=3,
+             caption="Average seroconversion rate (SCR) per year estimated from age-structured seroprevalence (12-36 months)",
+             align = "lccc",
+             col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)"),
+             row.names = FALSE)  %>%
+  kable_styling(bootstrap_options = "striped",full_width = TRUE)
+
+```
 
 # Estimate the cumulative number of antigens positive by age
 
-```{r plot n antigen positive by age}
+```{r plot n antigen positive by age 12-36 months}
 
 d_agecat <- d3 %>%
   mutate(agecat = cut(agem,breaks = c(-0.1,12,24,36,48,60)),
