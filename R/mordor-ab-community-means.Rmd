@@ -176,7 +176,9 @@ cl_rank <- mu_mfi %>%
 plot_mu_mfi <- mu_mfi %>%
   filter(group != "malaria") %>%
   left_join(cl_rank,by="clusterid") %>%
-  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf))),
+         arm = factor(arm, levels=c("placebo","azithro"), labels = c("placebo","azithromycin"))
+         ) 
 
 
 #----------------------------------
@@ -262,7 +264,9 @@ cl_rank <- mu_mfi %>%
 plot_mu_mfi <- mu_mfi %>%
   filter(group == "malaria") %>%
   left_join(cl_rank,by="clusterid") %>%
-  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf))),
+         arm = factor(arm, levels=c("placebo","azithro"), labels = c("placebo","azithromycin"))
+         ) 
 
 
 #----------------------------------
@@ -389,8 +393,9 @@ cl_rank <- mu_serop %>%
 plot_mu_serop <- mu_serop %>%
   filter(group != "malaria") %>%
   left_join(cl_rank,by="clusterid") %>%
-  # mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep")) %>%
-  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf))),
+         arm = factor(arm, levels=c("placebo","azithro"), labels = c("placebo","azithromycin"))
+         ) 
 
 
 #----------------------------------
@@ -435,7 +440,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
     legend.key.width=grid::unit(0.4,"cm"),
     
     #set remove x axis ticks
-    axis.title.x=element_text(hjust=1, size=8),
+    axis.title.x=element_text(hjust=0, size=8),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     #set y axis text colour and adjust vertical justification
@@ -457,7 +462,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   )
 p
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-enterics.png"),p, device = "png", width=6,height=2)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-enterics.png"),p, device = "png", width=7,height=2.2)
 
 
 ```
@@ -478,8 +483,9 @@ cl_rank <- mu_serop %>%
 plot_mu_serop <- mu_serop %>%
   filter(group == "malaria") %>%
   left_join(cl_rank,by="clusterid") %>%
-  # mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep")) %>%
-  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf)))) 
+  mutate(antigenf = factor(antigenf,levels=rev(levels(antigenf))),
+         arm = factor(arm, levels=c("placebo","azithro"), labels = c("placebo","azithromycin"))
+         ) 
 
 
 #----------------------------------
@@ -543,7 +549,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   )
 p
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-malaria.png"),p, device = "png", width=6,height=2.5)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-malaria.png"),p, device = "png", width=6.5,height=2.5)
 
 
 ```
