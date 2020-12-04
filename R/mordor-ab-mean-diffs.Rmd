@@ -74,19 +74,16 @@ d2 <- d1 %>%
 #-------------------------------
 # age restrictions based on 
 # age-antibody curves
-# to exclude ages without any
-# variation in antibody levels
-# (esp. enterics, which become saturated)
+# to exclude ages with evidence
+# for maternal IgG contributions
 #
-# Enterics: 6 mo - 24
-# (except for salmonella, strep A)
+# Bacteria and protozoa: 6 mo - 59 mo
 #
 # Malaria antigens: 12 - 59 mo
 #-------------------------------
 d2 <- d2 %>%
   filter(agem >= 6) %>%
   mutate(agedrop = case_when(
-    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
     antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
     TRUE ~ 0
   )
@@ -160,6 +157,7 @@ table(d_n$phase,d_n$arm)
 #-----------------------------
 # summarize samples among 
 # children ages 6-24 months
+# (some force of infection analyses)
 #-----------------------------
 d_n2 <- d1 %>%
   filter(antigen == "vsp3" & !is.na(logmfi)) %>%
@@ -290,15 +288,15 @@ permute_mfi <- foreach(abi = levels(d2$antigenf), .combine = rbind) %do% {
 #-----------------------------
 # Add Benjamini-Hochberg FDR
 # corrected p-values, nested
-# within enterics and malaria
+# within bacteria/protozoa and malaria
 #-----------------------------
 bh_p_enterics <- p.adjust(permute_mfi$permute_p[1:10],method = "BH")
 bh_p_malaria <- p.adjust(permute_mfi$permute_p[11:19],method = "BH")
 
 ```
 
-## Enterics MFI summary table
-```{r MFI means table enterics}
+## Bacteria & Protozoa MFI summary table
+```{r MFI means table bacteria}
 mu_mfi_table <- mu_mfi2 %>%
   ungroup() %>%
   left_join(permute_mfi, by = "antigenf") %>%
@@ -320,15 +318,15 @@ knitr::kable(mu_mfi_table %>% slice(1:10),
 ```
 
 
-## Enterics MFI summary figure
+## Bacteria and Protozoa MFI summary figure
 
-```{r MFI means figure enterics, warning=FALSE}
+```{r MFI means figure bacteria, warning=FALSE}
 #------------------------------
 # plot mean log10 MFI by arm
 #------------------------------
 
 # make some labels
-d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
+d_labels <- data.frame(group = rep("bacteria\nand\nprotozoa",2),
                        antigenf=rep("Campylobacter p18",2),
                        arm = c("azithromycin","placebo"),
                        mean = rep(3.5,2))
@@ -346,7 +344,7 @@ mu_mfi_azithro <- mu_mfi2 %>%
 mu_mfi_plot <- bind_rows(mu_mfi_placebo,mu_mfi_azithro) %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf)))) %>%
   arrange(antigenf)
-mu_mfi_plot$group = "enterics\nand\nstrep"
+mu_mfi_plot$group = "bacteria\nand\nprotozoa"
 mu_mfi_plot$group[grep("P. ",mu_mfi_plot$pathogen)] <- "malaria"
   
 # make figure
@@ -374,7 +372,7 @@ plot_mfi_means_enterics <- ggplot(data = mu_mfi_plot %>% filter(group != "malari
 
 ```
 
-```{r MFI diff figure enterics}
+```{r MFI diff figure bacteria}
 #------------------------------
 # plot the difference between
 # arms (companion to the means)
@@ -384,7 +382,7 @@ plot_mfi_means_enterics <- ggplot(data = mu_mfi_plot %>% filter(group != "malari
 mu_mfi_plot2 <- mu_mfi2 %>%
   ungroup() %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
-mu_mfi_plot2$group = "enterics\nand\nstrep"
+mu_mfi_plot2$group = "bacteria\nand\nprotozoa"
 mu_mfi_plot2$group[grep("P. ",mu_mfi_plot2$pathogen)] <- "malaria"
 
 # make the figure
@@ -407,10 +405,10 @@ plot_mfi_diff_enterics <- ggplot(data = mu_mfi_plot2 %>% filter(group != "malari
   
 ```
 
-```{r mfi composite figure enterics, fig.width = 10, fig.height = 5, warning = FALSE}
+```{r mfi composite figure bacteria, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_mfi_comp_enterics <- grid.arrange(plot_mfi_means_enterics,plot_mfi_diff_enterics,ncol=2,nrow=1, widths = c(4,3))
 
-ggsave(here("figures","mordor-ab-diff-mfi-enterics.png"),plot_mfi_comp_enterics,device = "png",width = 8, height = 3)
+ggsave(here("figures","mordor-ab-diff-mfi-bacteria-protozoa.png"),plot_mfi_comp_enterics,device = "png",width = 8, height = 3)
 ```
 
 
@@ -617,8 +615,8 @@ bh_p_malaria <- p.adjust(permute_serop$permute_p[7:15],method = "BH")
 
 ```
 
-## Enterics seroprevalence table
-```{r seroprev means table enterics}
+## Bacteria & Protozoa seroprevalence table
+```{r seroprev means table bacteria}
 mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   left_join(permute_serop, by = "antigenf") %>%
@@ -639,15 +637,15 @@ knitr::kable(mu_serop_table %>% slice(1:6),
 
 ```
 
-## Enterics seroprevalence figure
+## Bacteria & Protozoa seroprevalence figure
 
-```{r seroprev figure enterics}
+```{r seroprev figure bacteria}
 #------------------------------
 # plot seroprevalence by arm
 #------------------------------
 
 # make some labels
-d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
+d_labels <- data.frame(group = rep("bacteria\nand\nprotozoa",2),
                        antigenf=rep("Campylobacter p18 or p39",2),
                        arm = c("azithromycin","placebo"),
                        mean = rep(0.85,2))
@@ -665,7 +663,7 @@ mu_serop_azithro <- mu_serop2 %>%
 mu_serop_plot <- bind_rows(mu_serop_placebo,mu_serop_azithro) %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(mu_serop2$antigenf)))) %>%
   arrange(antigenf)
-mu_serop_plot$group = "enterics\nand\nstrep"
+mu_serop_plot$group = "bacteria\nand\nprotozoa"
 mu_serop_plot$group[grep("P. ",mu_serop_plot$pathogen)] <- "malaria"
   
 # make figure
@@ -703,7 +701,7 @@ plot_serop_means_enterics <- ggplot(data = mu_serop_plot %>% filter(group != "ma
 mu_serop_plot2 <- mu_serop2 %>%
   ungroup() %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(mu_serop2$antigenf))))
-mu_serop_plot2$group = "enterics\nand\nstrep"
+mu_serop_plot2$group = "bacteria\nand\nprotozoa"
 mu_serop_plot2$group[grep("P. ",mu_serop_plot2$pathogen)] <- "malaria"
 
 # make the figure
@@ -729,7 +727,7 @@ plot_serop_diff_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group != "ma
 ```{r serop composite figure enterics, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_serop_comp_enterics <- grid.arrange(plot_serop_means_enterics,plot_serop_diff_enterics,ncol=2,nrow=1, widths = c(4,2))
 
-ggsave(here("figures","mordor-ab-diff-seroprev-enterics.png"),plot_serop_comp_enterics,device = "png",width = 8, height = 2.5)
+ggsave(here("figures","mordor-ab-diff-seroprev-bacteria-protozoa.png"),plot_serop_comp_enterics,device = "png",width = 8, height = 2.5)
 ```
 
 
@@ -756,7 +754,7 @@ knitr::kable(mu_serop_table %>% slice(7:15),
 #------------------------------
 
 # make some labels
-d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
+d_labels <- data.frame(group = rep("bacteria\nand\nprotozoa",2),
                        antigenf=rep("P. falciparum MSP-1",2),
                        arm = c("azithromycin","placebo"),
                        mean = rep(0.82,2))
@@ -828,7 +826,6 @@ We use a generalized linear model with a complementary log-log link fit with cur
   \log - \log(1-P(Y|A,T)) = g(A) + \beta X
 \end{equation}
 
-
 The hazard or force of infection at age $a$ is: $\lambda(a) = F'(a)/(1-F(a))$. From the definition of the hazard, we have: 
 
 $1- F(a) = \exp [ - \int_0^a \lambda(a) da ]$ and $\int_0^a \lambda(a) da = - \log [1-F(a)]$.
@@ -841,9 +838,17 @@ The average hazard over the age period $a_1$ to $a_2$ is:
   \int_{a_1}^{a_2} \lambda(a) da = \frac{\log[1-F(a_1)]-\log[1-F(a_2)]}{a_2 - a_1}
 \end{equation}
 
-```{r FOI  estimates}
+The approach assumes no seroreversion over the age range $(a_1, a_2)$, which manifests as monotonically increasing seroprevalence with age. Limit the analysis of enteric pathogens to ages 6-24 months where this assumption is more tenable (_Salmonella_ serogroups B and D is an exception, where seroprevalence continues to increase through 59 months) 
 
+```{r FOI  estimates}
+#---------------------------------
+# for enterics, drop children >24 mo
+# (excluding Salmonella)
+#---------------------------------
 d_foi <- d_serop %>%
+  mutate(dropobs = ifelse(antigenf %in% c("Campylobacter p18 or p39","ETEC LTB","Cryptosporidium Cp17 or Cp23","Giardia VSP-3 or VSP-5") & (agem > 24),1,0)) %>%
+  filter(dropobs==0) %>%
+  select(-dropobs) %>%
   mutate(antigenf = droplevels(antigenf),
          clusteridf = factor(clusterid),
          dummy = 1)
@@ -891,14 +896,14 @@ foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
 #-----------------------------
 # Add Benjamini-Hochberg FDR
 # corrected p-values, nested
-# within enterics and malaria
+# within bacteria/protozoa and malaria
 #-----------------------------
 bh_p_enterics <- p.adjust(foi_ests$hr_p[1:6],method = "BH")
 bh_p_malaria <- p.adjust(foi_ests$hr_p[7:15],method = "BH")
 
 ```
 
-## Enterics FOI table
+## Bacteria & Protozoa FOI table
 ```{r foi table of results enterics}
 
 foi_ests_tab <- foi_ests %>%
@@ -924,9 +929,9 @@ knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %
 
 ```
 
-## Enterics FOI figure
+## Bacteria & Protozoa FOI figure
 
-```{r foi ests figure enterics}
+```{r foi ests figure bacteria}
 #------------------------------
 # plot SCR by arm
 # estimates are multiplied by
@@ -935,7 +940,7 @@ knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %
 #------------------------------
 
 # make some labels
-d_labels <- data.frame(group = rep("enterics\nand\nstrep",2),
+d_labels <- data.frame(group = rep("bacteria\nand\nprotozoa",2),
                        antigenf=rep("Campylobacter p18 or p39",2),
                        arm = c("azithromycin","placebo"),
                        mean = rep(2.75,2))
@@ -953,7 +958,7 @@ mu_scr_azithro <- foi_ests %>%
 mu_scr_plot <- bind_rows(mu_scr_placebo,mu_scr_azithro) %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(d_foi$antigenf)))) %>%
   arrange(antigenf)
-mu_scr_plot$group = "enterics\nand\nstrep"
+mu_scr_plot$group = "bacteria\nand\nprotozoa"
 mu_scr_plot$group[substr(as.character(mu_scr_plot$antigenf),1,3)=="P. "] <- "malaria"
   
 # make figure (enterics)
@@ -981,7 +986,7 @@ plot_scr_means_enterics <- ggplot(data = mu_scr_plot %>% filter(group != "malari
 
 ```
 
-```{r scr hazard ratio figure enterics}
+```{r scr hazard ratio figure bacteria}
 #------------------------------
 # plot the hazard ratio between
 # arms (companion to the means)
@@ -991,7 +996,7 @@ plot_scr_means_enterics <- ggplot(data = mu_scr_plot %>% filter(group != "malari
 mu_scr_plot2 <- foi_ests %>%
   ungroup() %>%
   mutate(antigenf = factor(antigenf, levels = rev(levels(d_foi$antigenf))))
-mu_scr_plot2$group = "enterics\nand\nstrep"
+mu_scr_plot2$group = "bacteria\nand\nprotozoa"
 mu_scr_plot2$group[substr(as.character(mu_scr_plot2$antigenf),1,3)=="P. "] <- "malaria"
 
 # make the figure (enterics)
@@ -1016,10 +1021,10 @@ plot_scr_hr_enterics <- ggplot(data = mu_scr_plot2 %>% filter(group != "malaria"
 ```
 
 
-```{r scr composite figure enterics, fig.width = 10, fig.height = 5, warning = FALSE}
+```{r scr composite figure bacteria, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_scr_comp <- grid.arrange(plot_scr_means_enterics,plot_scr_hr_enterics,ncol=2,nrow=1, widths = c(4,2))
 
-ggsave(here("figures","mordor-ab-scr-hr-enterics.png"),plot_scr_comp,device = "png",width = 8, height = 2.5)
+ggsave(here("figures","mordor-ab-scr-hr-bacteria-protozoa.png"),plot_scr_comp,device = "png",width = 8, height = 2.5)
 ```
 
 
