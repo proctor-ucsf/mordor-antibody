@@ -52,8 +52,16 @@ d <- read_rds(here("data","mordor-ab-analysis.rds"))
 # drop the trachoma, strongyloides, 
 # and GST negative control values
 #-------------------------------
-d2 <- d %>%
+d1 <- d %>%
   filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  mutate(antigenf = factor(antigenf))
+  
+#-------------------------------
+# drop cholera CTB because so 
+# highly cross-reactive with ETEC LTB
+#-------------------------------
+d2 <- d1 %>%
+  filter( !antigen %in% c("ctb") ) %>%
   mutate(antigenf = factor(antigenf))
 
 #-------------------------------
@@ -120,11 +128,10 @@ d_serop <- d2 %>%
   mutate(antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Cholera CTB",
     "Salmonella LPS B or D",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
-   levels(d2$antigenf)[11:20]) )
+   levels(d2$antigenf)[10:19]) )
          ) %>%
   # drop extra variables (MFI doesn't correspond to composite seropos so drop)
   select(-mfi,-logmfi,-agedrop)
@@ -366,7 +373,7 @@ mu_serop <- mu_serop %>%
     spread(name, value) %>% 
     rename("seroprev_lb" = "1", "seroprev_ub" = "2") %>%
   # identify malaria antigens vs others
-    mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","enterics\nand\nstrep"))
+    mutate(group = ifelse(substr(pathogen,1,2)=="P.","malaria","bacteria\nand\nprotozoa"))
 
 ```
 
@@ -462,7 +469,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   )
 p
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-enterics.png"),p, device = "png", width=7,height=2.2)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-bacteria-protozoa.png"),p, device = "png", width=7,height=1.9)
 
 
 ```
@@ -577,7 +584,7 @@ p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" ), aes(x = arm, y
 
 p_comm
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-enterics.png"),p_comm, device = "png", width=6,height=6)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-bacteria-protozoa.png"),p_comm, device = "png", width=6,height=6)
 
 ```
 
