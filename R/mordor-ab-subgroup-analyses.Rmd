@@ -77,19 +77,19 @@ d2 <- d2 %>%
 #-------------------------------
 # age restrictions based on 
 # age-antibody curves
-# to exclude ages without any
-# variation in antibody levels
-# (esp. enterics, which become saturated)
+# to exclude ages with evidence
+# for maternal IgG contributions
 #
-# Enterics: 6 mo - 24
-# (except for salmonella, strep A)
+# Bacteria and protozoa: 6 mo - 59 mo
+#
+# ETEC LTB: 6 mo - 24 mo (no heterogeneity at older ages)
 #
 # Malaria antigens: 12 - 59 mo
 #-------------------------------
 d2 <- d2 %>%
   filter(agem >= 6) %>%
   mutate(agedrop = case_when(
-    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+    antigen %in% c("etec") & (agem > 24) ~ 1,
     antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
     TRUE ~ 0
   )
@@ -184,14 +184,13 @@ mu_mfi <- left_join(n_mfi, mu_mfi, by=c("pathogen","antigenf","phasef"))
 # with replacement to estimate
 # 95% CIs for difference in means
 #-----------------------------
-set.seed(123)
 nreps <- 1000
 ncl <- length(unique(d2$clusterid))
 bsamp <- matrix(sample(unique(d2$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
 d_mfi_boot <- d2 %>% select(clusterid,antigenf,phasef,arm,logmfi)
-mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
-  
-  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %dopar% {
+  set.seed(bi)
+  # if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
 
   di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
                   d_mfi_boot, by = "clusterid")
@@ -384,14 +383,13 @@ mu_serop <- left_join(n_serop, mu_serop, by=c("pathogen","antigenf", "phasef"))
 # with replacement to estimate
 # 95% CIs for difference in seroprev
 #-----------------------------
-set.seed(123)
 nreps <- 1000
 ncl <- length(unique(d_serop$clusterid))
 bsamp <- matrix(sample(unique(d_serop$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
 d_serop_boot <- d_serop %>% select(clusterid,antigenf,arm,phasef,seropos)
-mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
-  
-  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %dopar% {
+  set.seed(bi)
+  # if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
   
   di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
                   d_serop_boot, by = "clusterid")
@@ -594,14 +592,13 @@ mu_mfi <- left_join(n_mfi, mu_mfi, by=c("pathogen","antigenf","agem_start_under6
 # with replacement to estimate
 # 95% CIs for difference in means
 #-----------------------------
-set.seed(123)
 nreps <- 1000
 ncl <- length(unique(d2$clusterid))
 bsamp <- matrix(sample(unique(d2$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
 d_mfi_boot <- d2 %>% select(clusterid,antigenf,agem_start_under6,arm,logmfi)
-mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
-  
-  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+mu_mfi_boot <- foreach(bi = 1:nreps, .combine = rbind) %dopar% {
+  set.seed(bi)
+  # if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
 
   di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
                   d_mfi_boot, by = "clusterid")
@@ -798,14 +795,13 @@ mu_serop <- left_join(n_serop, mu_serop, by=c("pathogen","antigenf", "agem_start
 # with replacement to estimate
 # 95% CIs for difference in seroprev
 #-----------------------------
-set.seed(123)
 nreps <- 1000
 ncl <- length(unique(d_serop$clusterid))
 bsamp <- matrix(sample(unique(d_serop$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
 d_serop_boot <- d_serop %>% select(clusterid,antigenf,arm,agem_start_under6,seropos)
-mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
-  
-  if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %dopar% {
+  set.seed(bi)
+  # if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
   
   di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
                   d_serop_boot, by = "clusterid")
