@@ -759,7 +759,7 @@ knitr::kable(mu_serop_table %>% slice(7:15),
 d_labels <- data.frame(group = rep("bacteria\nand\nprotozoa",2),
                        antigenf=rep("P. falciparum MSP-1",2),
                        arm = c("azithromycin","placebo"),
-                       mean = rep(0.82,2))
+                       mean = rep(0.65,2))
 
 
 # make figure
@@ -775,11 +775,11 @@ plot_serop_means_malaria <- ggplot(data = mu_serop_plot %>% filter(group == "mal
   scale_x_discrete(position = "top") +
   scale_y_continuous(breaks = seq(0,1,by=0.2), labels=sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
   # add annotation and labels
-  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.25,-0.25) ), size = 3, hjust = 0 ) +
+  geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.25,-0.25) ), size = 3, hjust = 1 ) +
   labs(x = NULL, y = "seroprevalence (%)\n ") +
   
   # figure layout
-  coord_flip(ylim=c(0,1)) +
+  coord_flip(ylim=c(0,0.8)) +
   # theme_minimal() +
   theme(
     legend.position = "none"
