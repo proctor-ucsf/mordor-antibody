@@ -56,23 +56,22 @@ d1 <- d %>%
   filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
   mutate(antigenf = factor(antigenf))
 
-
 #-------------------------------
 # age restrictions based on 
 # age-antibody curves
-# to exclude ages without any
-# variation in antibody levels
-# (esp. enterics, which become saturated)
+# to exclude ages with evidence
+# for maternal IgG contributions
 #
-# Enterics: 6 mo - 24
-# (except for salmonella, strep A)
+# Bacteria and protozoa: 6 mo - 59 mo
+#
+# ETEC LTB: 6 mo - 24 mo (no heterogeneity at older ages)
 #
 # Malaria antigens: 12 - 59 mo
 #-------------------------------
 d2 <- d1 %>%
   filter(agem >= 6) %>%
   mutate(agedrop = case_when(
-    antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","etec","ctb") & (agem > 24) ~ 1,
+    antigen %in% c("etec") & (agem > 24) ~ 1,
     antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
     TRUE ~ 0
   )
@@ -101,14 +100,14 @@ table(d_n$arm)
 table(d_n$phase,d_n$arm)
 ```
 
-## Ages 6-24 months (enterics)
+## Ages 6-59 months (bacteria and protozoa)
 
 Number of samples by phase and arm
 
-```{r cross tab of n by arm 6 to 24 months}
+```{r cross tab of n by arm 6 to 59 months}
 #-----------------------------
 # summarize samples among 
-# children ages 6-24 months
+# children ages 6-59 months
 #-----------------------------
 d_n2 <- d2 %>%
   filter(antigen == "vsp3" & !is.na(logmfi) & agedrop == 0) 
@@ -121,7 +120,7 @@ table(d_n2$phase,d_n2$arm)
 
 Total samples by arm, post-baseline
 
-```{r total samples 6 to 24 months post-treatment}
+```{r total samples 6 to 59 months post-treatment}
 #-----------------------------
 # summarize totals post-treatment
 #-----------------------------
@@ -177,7 +176,7 @@ table(dchild$arm)
 
 ```
 
-Then identify number excluded because of <6 months (enterics) 
+Then identify number excluded because of <6 months (bacteria and protozoa) 
 
 ```{r summarize children excluded under 6 months}
 #------------------------------------
@@ -209,14 +208,14 @@ table(dchild12$arm)
 
 ```
 
-Identify number excluded because >24 months (enterics) 
+Identify number excluded because >24 months (ETEC) 
 
 ```{r summarize children excluded over 24 months}
 #------------------------------------
 # identify children excluded >24 months
 #------------------------------------
 dchild24 <- d1 %>%
-  filter(agem>24 & antigen=="vsp3") %>%
+  filter(agem>24 & antigen=="etec") %>%
   group_by(childid) %>%
   slice(1)
 
