@@ -81,7 +81,7 @@ d_enteric_comps <- d2 %>%
   mutate(antigenf = case_when(
     antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
     antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
-    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("salb","sald") ~ "Salmonella LPS groups B or D",
     antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
   )) %>%
   select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
@@ -99,7 +99,7 @@ dp <- d2 %>%
   mutate(antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Salmonella LPS B or D",
+    "Salmonella LPS groups B or D",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
    levels(d2$antigenf)[10:19]) )
@@ -149,7 +149,7 @@ table1(~ agecat + sex  | arm,
 # ages 12-59 months
 #----------------------------------
 table1(~ `P. falciparum MSP-1` +
-         `P. falciparum AMA` +
+         `P. falciparum AMA1` +
          `P. falciparum GLURP-Ro` +
          `P. falciparum LSA1` + 
          `P. falciparum CSP` +
@@ -163,14 +163,11 @@ table1(~ `P. falciparum MSP-1` +
        )
 
 #----------------------------------
-# Table for enterics seroprevalence
+# Table for bacteria and protozoan 
+# seroprevalence
 # ages 6-24 months
 #----------------------------------
-table1(~ `Campylobacter p18 or p39` +
-         `ETEC LTB` +
-         `Cryptosporidium Cp17 or Cp23` +
-         `Giardia VSP-3 or VSP-5` 
-       | arm, 
+table1(~ `ETEC LTB` | arm, 
        data=dp_wide %>% filter(phase == 0 & agem>=6 & agem<=24), 
        overall = FALSE
        )
@@ -180,8 +177,11 @@ table1(~ `Campylobacter p18 or p39` +
 # seroprevalence
 # ages 6-59 months
 #----------------------------------
-table1(~ `Salmonella LPS B or D` +
-         `Streptococcus A` 
+table1(~ `Campylobacter p18 or p39` +
+         `Cryptosporidium Cp17 or Cp23` +
+         `Giardia VSP-3 or VSP-5` +
+         `Salmonella LPS groups B or D` +
+         `Streptococcus group A SPEB` 
        | arm, 
        data=dp_wide %>% filter(phase == 0 & agem>=6), 
        overall = FALSE
