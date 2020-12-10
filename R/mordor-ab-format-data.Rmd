@@ -70,15 +70,15 @@ antigen_labs <- c(
   "Campylobacter p39",
   "ETEC LTB",
   "Cholera CTB",
-  "Salmonella LPS B",
-  "Salmonella LPS D",
+  "Salmonella group B LPS",
+  "Salmonella group D LPS",
   "Cryptosporidium Cp17",
   "Cryptosporidium Cp23",
   "Giardia VSP-3",
   "Giardia VSP-5",
-  "Streptococcus A",
+  "Streptococcus group A SPEB",
   "P. falciparum MSP-1",
-  "P. falciparum AMA",
+  "P. falciparum AMA1",
   "P. falciparum GLURP-Ro",
   "P. falciparum LSA1",
   "P. falciparum CSP",
@@ -116,7 +116,7 @@ d2 <- d %>%
   ) ) %>%
     mutate(pathogen = factor(pathogen,levels=c("Campylobacter","ETEC","Cholera","Salmonella","Cryptosporidium","Giardia","Streptococcus","P. falciparum","P. malariae","P. ovale","P. vivax","Strongyloides","Trachoma","Neg control"))
            ) %>%
-  select(dbsid,type,well,pathogen,antigen,antigenf,mfi)
+  dplyr::select(dbsid,type,well,pathogen,antigen,antigenf,mfi)
         
 ```
 
@@ -148,7 +148,7 @@ md <- read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/MORDOR-Morbid
 # convenient
 #-------------------------------
 md2 <- md %>% 
-  select(dbsid=code_bspot_,
+  dplyr::select(dbsid=code_bspot_,
          childid = masterperson_mcd,
          clname = gwu,
          gwunotes_,
@@ -186,7 +186,7 @@ md2 <- md %>%
 #-------------------------------
 md3 <- md2 %>% 
   filter(is.na(gwunotes_)) %>%
-  select(-gwunotes_) %>%
+  dplyr::select(-gwunotes_) %>%
   mutate(cluster_name = str_to_upper(clname))
 md3$clusterid <- paste0("C",group_indices(md3,cluster_name))
 
@@ -244,7 +244,7 @@ d3 <- d2 %>%
 #-------------------------------
 dbs_nomatch <- d3 %>%
   filter(is.na(cluster_name)) %>%
-  select(dbsid,antigen,mfi) %>%
+  dplyr::select(dbsid,antigen,mfi) %>%
   pivot_wider(id_cols = dbsid, names_from = "antigen", values_from = "mfi")
 
 d4 <- d3 %>%
@@ -339,7 +339,7 @@ d_pre <- read_csv(here("data","mordor-ab-monthly-precip.csv"))
 
 d_pre2 <- d_pre %>%
   group_by(clusterid,pyear) %>%
-  select(clusterid,pyear,wet_start,wet_end) %>%
+  dplyr::select(clusterid,pyear,wet_start,wet_end) %>%
   slice(1) %>%
   ungroup()
 
@@ -354,7 +354,7 @@ d4 <- d4 %>%
          pyear = year(medtestdate)
   ) %>%
   left_join(d_pre2, by = c("clusterid","pyear")) %>%
-  select(-pyear)
+  dplyr::select(-pyear)
 
 #-------------------------------
 # summarize wet season begin and 
@@ -383,7 +383,7 @@ As of September 3, 2020, this code is no longer evaluated. The analysis was unma
 # assignments, put to the side
 #-------------------------------
 comd <- d4 %>%
-  select(clusterid,arm) %>%
+  dplyr::select(clusterid,arm) %>%
   group_by(clusterid) %>%
   slice(1)
 write_csv(comd,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
@@ -394,7 +394,7 @@ write_csv(comd,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
 #-------------------------------
 set.seed(12345)
 comd_rr <- comd %>%
-  select(clusterid) %>%
+  dplyr::select(clusterid) %>%
   ungroup() %>%
   mutate(arm = sample(rep(c("sun","moon"),15),size=30,replace=FALSE))
 
@@ -403,7 +403,7 @@ comd_rr <- comd %>%
 # labels to the antibody data
 #-------------------------------
 d5 <- d4 %>%
-  select(-arm) %>%
+  dplyr::select(-arm) %>%
   left_join(comd_rr,by="clusterid") %>%
   mutate(arm = factor(arm,levels=c("sun","moon")))
 
@@ -557,13 +557,13 @@ mixdens <- foreach(ab=levels(dmmcut$antigenf),.combine=rbind) %do% {
   di <- mixf$xden
   di$mmcut <- mixf$mmcut
   di$antigenf=ab
-  di <- di %>% arrange(x) %>% select(antigenf,mmcut,everything())
+  di <- di %>% arrange(x) %>% dplyr::select(antigenf,mmcut,everything())
   di
 }
 
 mmcuts <- mixdens %>%
   group_by(antigenf) %>% 
-  filter(row_number()==1) %>% select(antigenf,mmcut) %>% ungroup() %>%
+  filter(row_number()==1) %>% dplyr::select(antigenf,mmcut) %>% ungroup() %>%
   mutate(antigenf = factor(antigenf,levels=levels(d7$antigenf)))
 
 
@@ -678,7 +678,7 @@ dl4 <- dl3 %>%
   mutate(meanmfi = mean(logmfi),
          sdmfi = sd(logmfi),
          pucut = meanmfi + 3*sdmfi) %>%
-  select(-meanmfi,sdmfi)
+  dplyr::select(-meanmfi,sdmfi)
 
 table(dl4$antigen)
 
@@ -687,7 +687,7 @@ table(dl4$antigen)
 # cutoffs back to the main data
 #-------------------------------
 pucuts <- dl4 %>%
-  select(antigen,pucut) %>%
+  dplyr::select(antigen,pucut) %>%
   group_by(antigen,pucut) %>%
   slice(1)
 
@@ -764,7 +764,7 @@ d10 <- d9 %>%
 # and save data
 #-------------------------------
 d11 <- d10 %>%
-  select(clusterid,phase,arm,childid,agem,agem_start, agem_start_under6, sex, 
+  dplyr::select(clusterid,phase,arm,childid,agem,agem_start, agem_start_under6, sex, 
          testdate,
          wet_start,wet_end,season,
          pf_thicksmear,pf_density,pf_gameto,
@@ -806,7 +806,7 @@ dtr2 <- dtr %>%
   # format cluster names for merge
   mutate(cluster_name = str_to_upper(randomunit999)) %>%
   # limit to relevant vars
-  select(cluster_name,dupwpid_a,childid=masterperson, phase, agem = agex, female = femalex, trdate, treated, dose=dosex)
+  dplyr::select(cluster_name,dupwpid_a,childid=masterperson, phase, agem = agex, female = femalex, trdate, treated, dose=dosex)
 
 #-------------------------------
 # grab the community ID variables 
@@ -823,7 +823,7 @@ dtr2 <- dtr %>%
 #-------------------------------
 dchids <- d10 %>%
   ungroup() %>%
-  select(childid, clusterid, morbidity_cluster_name = cluster_name, arm) %>%
+  dplyr::select(childid, clusterid, morbidity_cluster_name = cluster_name, arm) %>%
   group_by(childid) %>%
   slice(1)
 
@@ -844,7 +844,7 @@ dtr3 <- dtr2 %>%
 #-------------------------------
 dtr_cnames <- dtr3 %>%
   group_by(clusterid) %>%
-  select(clusterid, treatment_cluster_name = cluster_name, morbidity_cluster_name) %>%
+  dplyr::select(clusterid, treatment_cluster_name = cluster_name, morbidity_cluster_name) %>%
   slice(1) 
 
 knitr::kable(dtr_cnames) %>% kableExtra::kable_styling(bootstrap_options = "striped")
@@ -854,7 +854,7 @@ knitr::kable(dtr_cnames) %>% kableExtra::kable_styling(bootstrap_options = "stri
 # restrict to relevant
 # variables
 dtr4 <- dtr3 %>%
-  select(clusterid,arm,phase,childid,agem,female,trdate,treated,dose)
+  dplyr::select(clusterid,arm,phase,childid,agem,female,trdate,treated,dose)
 
 
 
