@@ -71,14 +71,14 @@ d_enteric_comps <- d2 %>%
   mutate(antigenf = case_when(
     antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
     antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
-    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("salb","sald") ~ "Salmonella groups B or D LPS",
     antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
   ),
   # create new factor levels that includes composite indicators
   antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Salmonella LPS B or D",
+    "Salmonella groups B or D LPS",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
    levels(d2$antigenf)[10:19]) )
@@ -331,7 +331,7 @@ Age-dependent MFI figure
 # create a variable for faceting panels by pathogen
 fit_age_enterics <- fit_age2 %>%
   filter(antigen %in% c("cp17","cp23","vsp3","vsp5","p18","p39","salb","sald","etec","ctb","speb")) %>%
-  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
+  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella group D LPS"),2,1)
          )
 
 #-----------------------------
@@ -347,10 +347,10 @@ pplabs <- fit_age_enterics %>%
   group_by(antigenf) %>%
   select(pathogen,antigen, antigenf, arm) %>%
   slice(1) %>%
-  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella LPS D"),2,1)
+  mutate(antigenn=ifelse(antigenf %in% c("Giardia VSP-5","Cryptosporidium Cp23","Campylobacter p39","Salmonella group D LPS"),2,1)
          ) %>%
   mutate(minX = 6, 
-         maxX = ifelse(antigenf %in% c("Salmonella LPS B", "Salmonella LPS D","Streptococcus A"),60,24),
+         maxX = ifelse(antigenf %in% c("Salmonella group B LPS", "Salmonella group D LPS","Streptococcus group A SPEB"),60,24),
          arm = "placebo"
          )
 
@@ -403,7 +403,7 @@ Seroprevalence figure. Use composite estimates for pathogens with multiple antig
 fitp_enterics <- fitp_age2 %>%
   filter(pathogen %in% c("ETEC","Streptococcus")) %>%
   bind_rows(fitp_comp_age2) %>%
-  mutate(antigenf = factor(antigenf,levels = c(levels(fitp_comp_age2$antigenf)[1],"ETEC LTB",levels(fitp_comp_age2$antigenf)[2:4],"Streptococcus A")))
+  mutate(antigenf = factor(antigenf,levels = c(levels(fitp_comp_age2$antigenf)[1],"ETEC LTB",levels(fitp_comp_age2$antigenf)[2:4],"Streptococcus group A SPEB")))
 
 #-----------------------------
 # create a bounding box
@@ -414,7 +414,7 @@ fitp_enterics <- fitp_age2 %>%
 #-----------------------------
 d_shade_box <- data.frame(antigenf = levels(fitp_enterics$antigenf)) %>%
   mutate(minX = 6, 
-         maxX = ifelse(antigenf %in% c("Salmonella LPS B or D","Streptococcus A"),60,24),
+         maxX = ifelse(antigenf %in% c("Salmonella groups B or D LPS","Streptococcus group A SPEB"),60,24),
          arm = "placebo",
          antigenf = factor(antigenf,levels(fitp_enterics$antigenf))
          )
@@ -479,9 +479,9 @@ Seroconversion rate figure. Use composite estimates for pathogens with multiple 
 # to convert units to per year
 #-----------------------------
 foip_enterics <- fit_foi_age %>%
-  filter(antigenf %in% c("ETEC LTB","Cholera CTB","Streptococcus A")) %>%
+  filter(antigenf %in% c("ETEC LTB","Streptococcus group A SPEB")) %>%
   bind_rows(fit_foi_comp_age) %>%
-  mutate(antigenf = factor(antigenf,levels = c(levels(d_foi_comp$antigenf)[1],"ETEC LTB","Cholera CTB",levels(d_foi_comp$antigenf)[2:4],"Streptococcus A")),
+  mutate(antigenf = factor(antigenf,levels = c(levels(d_foi_comp$antigenf)[1],"ETEC LTB", levels(d_foi_comp$antigenf)[2:4],"Streptococcus group A SPEB")),
          arm = factor(arm, levels = c("placebo","azithro"))
          )
 
