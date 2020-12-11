@@ -201,7 +201,7 @@ d_enteric_comps <- dl %>%
   mutate(antigenf = case_when(
     antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
     antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
-    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("salb","sald") ~ "Salmonella groups B or D LPS",
     antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
   )) %>%
   select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
@@ -219,7 +219,7 @@ d_serop <- dl %>%
   mutate(antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Salmonella LPS B or D",
+    "Salmonella groups B or D LPS",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
    levels(d2$antigenf)[10:19]) )
@@ -403,7 +403,7 @@ dl3 <- dl2 %>%
   ungroup() %>%
   mutate(antigenf2 = antigenf,
          antigenf2 = case_when(antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39",
-                               antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+                               antigen %in% c("salb","sald") ~ "Salmonella groups B or D LPS",
                                antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
                                antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
                                TRUE ~ as.character(antigenf)
@@ -411,7 +411,7 @@ dl3 <- dl2 %>%
          antigenf2 = factor(antigenf2, levels = c(
            "Campylobacter p18 or p39",
            "ETEC LTB",
-           "Salmonella LPS B or D",
+           "Salmonella groups B or D LPS",
            "Cryptosporidium Cp17 or Cp23",
            "Giardia VSP-3 or VSP-5",
            levels(d2$antigenf)[10:19]) )
@@ -725,7 +725,7 @@ knitr::kable(irr_ests_tab %>% select(antigenf,ni_a,nit_a,seroi_a_print,ni_p,nit_
   add_header_above(c(" " = 1, "Azithromycin" = 3,  "Placebo" = 3, " " = 1)) %>%
   kableExtra::column_spec(column = c(4,7,8), width = "150px") %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 1, end_row = 9) %>%
-  kableExtra::group_rows(group_label = "Bacteria & protozoans", start_row = 10, end_row = 15) 
+  kableExtra::group_rows(group_label = "Bacteria & protozoa", start_row = 10, end_row = 15) 
 
 ```
 ## Summary table - seroreversion rates
@@ -740,7 +740,7 @@ knitr::kable(irr_ests_tab %>% select(antigenf,nr_a,nrt_a,seror_a_print,nr_p,nrt_
   add_header_above(c(" " = 1, "Azithromycin" = 3,  "Placebo" = 3, " " = 1)) %>%
   kableExtra::column_spec(column = c(4,7,8), width = "150px") %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 1, end_row = 9) %>%
-  kableExtra::group_rows(group_label = "Bacteria & protozoans", start_row = 10, end_row = 15) 
+  kableExtra::group_rows(group_label = "Bacteria & protozoa", start_row = 10, end_row = 15) 
 
 ```
 
@@ -803,12 +803,12 @@ d <- irr_ests %>%
   mutate(antigenf = factor(antigenf,levels = 
                              c("Campylobacter p18 or p39",
                                "ETEC LTB",
-                               "Salmonella LPS B or D",
+                               "Salmonella groups B or D LPS",
                                "Cryptosporidium Cp17 or Cp23",
                                "Giardia VSP-3 or VSP-5",
-                               "Streptococcus A",
+                               "Streptococcus group A SPEB",
                                "P. falciparum MSP-1",
-                               "P. falciparum AMA",
+                               "P. falciparum AMA1",
                                "P. falciparum GLURP-Ro",
                                "P. falciparum LSA1",
                                "P. falciparum CSP",
@@ -915,7 +915,7 @@ ggsave(filename = here("figures","mordor-ab-long-v-cross-malaria.png"),malaria_c
 
 Seroconversion rate panel
 
-```{r plot seroconversion rates enterics}
+```{r plot seroconversion rates bacteria protozoa}
 
 d_plot_rates <- d2 %>%
   filter(group!="malaria") %>%
@@ -940,7 +940,7 @@ plot_scr_enterics <- ggplot(data = d_plot_rates, aes(x = antigenf, y = seroi,col
 
 Hazard/rate ratio panel
 
-```{r plot HRs enterics}
+```{r plot HRs bacteria}
 
 d_plot_hr <- d2 %>%
   filter(group!="malaria" & arm == "azithromycin") %>%
@@ -969,10 +969,10 @@ plot_hr_enterics <- ggplot(data = d_plot_hr, aes(x = antigenf, y = irr,color = a
 ```
 
 Composite plot
-```{r plot composite enterics, fig.height=3, fig.width = 12}
+```{r plot composite bacteria protozoa, fig.height=3, fig.width = 12}
 enterics_comp <- grid.arrange(plot_scr_enterics,plot_hr_enterics,ncol=2,nrow=1,widths=c(3,1))
 
-ggsave(filename = here("figures","mordor-ab-long-v-cross-enterics.png"),enterics_comp,device = "png",height=3,width=10)
+ggsave(filename = here("figures","mordor-ab-long-v-cross-bacteria-protozoa.png"),enterics_comp,device = "png",height=3,width=10)
 
 ```
 
