@@ -113,7 +113,7 @@ d_enteric_comps <- d2 %>%
   mutate(antigenf = case_when(
     antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
     antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
-    antigen %in% c("salb","sald") ~ "Salmonella LPS B or D",
+    antigen %in% c("salb","sald") ~ "Salmonella groups B or D LPS",
     antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
   )) %>%
   select(clusterid,phasef,arm,childid,agem,agem_start_under6,sex,dbsid,pathogen,antigenf,seropos)
@@ -131,7 +131,7 @@ d_serop <- d2 %>%
   mutate(antigenf = factor(antigenf,levels = c(
     "Campylobacter p18 or p39",
     "ETEC LTB",
-    "Salmonella LPS B or D",
+    "Salmonella groups B or D LPS",
     "Cryptosporidium Cp17 or Cp23",
     "Giardia VSP-3 or VSP-5",
    levels(d2$antigenf)[10:19]) )
@@ -275,7 +275,7 @@ knitr::kable(mu_mfi_table,
              align = "lcccr") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 40) %>%
+  kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 40) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 41, end_row = 76) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
@@ -295,7 +295,7 @@ knitr::kable(mu_mfi_table,
 mu_mfi_plot2 <- mu_mfi2 %>%
   ungroup() #%>%
   # mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
-mu_mfi_plot2$group = "enterics\nand\nstrep"
+mu_mfi_plot2$group = "bacteria\nand\nprotozoa"
 mu_mfi_plot2$group[grep("P. ",mu_mfi_plot2$pathogen)] <- "malaria"
 
 # make the figure
@@ -475,7 +475,7 @@ knitr::kable(mu_serop_table,
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 24) %>%
+  kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 24) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 25, end_row = 60) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
@@ -486,7 +486,7 @@ knitr::kable(mu_serop_table,
 
 ### Figure of results
 
-```{r serop diff phase figure enterics}
+```{r serop diff phase figure bacteria protozoa}
 #------------------------------
 # plot the difference between
 # arms by phase
@@ -496,7 +496,7 @@ knitr::kable(mu_serop_table,
 mu_serop_plot2 <- mu_serop2 %>%
   ungroup() #%>%
   # mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
-mu_serop_plot2$group = "enterics\nand\nstrep"
+mu_serop_plot2$group = "bacteria\nand\nprotozoa"
 mu_serop_plot2$group[grep("P. ",mu_serop_plot2$pathogen)] <- "malaria"
 
 # make the figure
@@ -685,7 +685,7 @@ knitr::kable(mu_mfi_table,
              align = "lcccr") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 20) %>%
+  kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 20) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 21, end_row = 38) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
@@ -696,7 +696,7 @@ knitr::kable(mu_mfi_table,
 
 ### Figure of results
 
-```{r MFI diff age figure enterics}
+```{r MFI diff age figure bacteria protozoa}
 #------------------------------
 # plot the difference between
 # arms by age group
@@ -706,7 +706,7 @@ knitr::kable(mu_mfi_table,
 mu_mfi_plot2 <- mu_mfi2 %>%
   ungroup() #%>%
   # mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
-mu_mfi_plot2$group = "enterics\nand\nstrep"
+mu_mfi_plot2$group = "bacteria\nand\nprotozoa"
 mu_mfi_plot2$group[grep("P. ",mu_mfi_plot2$pathogen)] <- "malaria"
 
 # make the figure
@@ -887,7 +887,7 @@ knitr::kable(mu_serop_table,
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
   add_header_above(c(" " = 2, "Proportion\nSeropositive" = 2,  " " = 2)) %>%
-  kableExtra::group_rows(group_label = "Enterics and strep", start_row = 1, end_row = 12) %>%
+  kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 12) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 13, end_row = 30) %>%
   footnote(
     symbol=c("P-value for additive interaction by study phase.")
@@ -899,7 +899,7 @@ knitr::kable(mu_serop_table,
 
 ### Figure of results
 
-```{r serop diff age figure enterics}
+```{r serop diff age figure bacteria protozoa}
 #------------------------------
 # plot the difference between
 # arms by phase
@@ -909,7 +909,7 @@ knitr::kable(mu_serop_table,
 mu_serop_plot2 <- mu_serop2 %>%
   ungroup() #%>%
   # mutate(antigenf = factor(antigenf, levels = rev(levels(mu_mfi2$antigenf))))
-mu_serop_plot2$group = "enterics\nand\nstrep"
+mu_serop_plot2$group = "bacteria\nand\nprotozoa"
 mu_serop_plot2$group[grep("P. ",mu_serop_plot2$pathogen)] <- "malaria"
 
 # make the figure
