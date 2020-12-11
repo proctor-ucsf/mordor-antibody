@@ -244,6 +244,17 @@ write_csv(d_pre5, path = here("data","mordor-ab-monthly-precip.csv"))
 
 ```
 
+```{r detach spatial packages}
+#------------------------------------
+# detach spatial packages to avoid
+# conflicts with dplyr::select
+#------------------------------------
+detach("package:ncdf4", unload=TRUE)
+detach("package:raster", unload=TRUE)
+detach("package:sp", unload=TRUE)
+
+```
+
 
 # Session Info
 ```{r session info}
