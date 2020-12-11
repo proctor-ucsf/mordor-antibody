@@ -70,7 +70,7 @@ d3 <- d2 %>%
          ) %>%
   arrange(clusterid,childid,phase) %>%
   slice(1) %>%
-  mutate(antigenf = "P. falciparum (MSP-1, AMA, GLRUP-Ro, LSA1, CSP, HRP2)") %>%
+  mutate(antigenf = "P. falciparum (MSP-1, AMA1, GLRUP-Ro, LSA1, CSP, HRP2)") %>%
   select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos,nantigens)
 
 
