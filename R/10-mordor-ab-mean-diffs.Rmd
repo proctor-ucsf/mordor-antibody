@@ -1,5 +1,5 @@
 ---
-title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens among children: A cluster-randomized, placebo-controlled trial in Niger"
 subtitle: "Compare arms using MFI, seroprevalence, and SCR"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"

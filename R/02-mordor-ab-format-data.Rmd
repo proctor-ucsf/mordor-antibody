@@ -1,5 +1,5 @@
 ---
-title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens among children: A cluster-randomized, placebo-controlled trial in Niger"
 subtitle: "Format data for analysis"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -33,7 +33,7 @@ source(here("R","mordor-ab-Config.R"))
 # load the raw MBA data sent from
 # Diana Martin at CDC
 #-------------------------------
-d <- read_csv("~/Box sync/mordor/mordor data/data/untouched-dbs/MORDOR MBA Raw Data Compiled 100219.csv")
+d <- read_csv("~/Box/mordor/mordor data/data/untouched-dbs/MORDOR MBA Raw Data Compiled 100219.csv")
 
 
 #-------------------------------
@@ -134,7 +134,7 @@ Read in the final morbidity dataset shared by Jermey Keenan in December 2019.  V
 #-------------------------------
 # read in the full morbidity file
 #-------------------------------
-md <- read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
+md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
                       col_types = cols(code_bspot_ = col_character(),
                                        arm = col_character(),
                                        txlabelgwu = col_character(),
@@ -252,7 +252,7 @@ d4 <- d3 %>%
 
 # do not save a file for now.
 # instead, print to HTML notebook
-# write_csv(dbs_nomatch,"~/box sync/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
+# write_csv(dbs_nomatch,"~/Box/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
 dbs_nomatch
 
 
@@ -386,7 +386,7 @@ comd <- d4 %>%
   dplyr::select(clusterid,arm) %>%
   group_by(clusterid) %>%
   slice(1)
-write_csv(comd,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
+write_csv(comd,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
 
 #-------------------------------
 # create a set of re-randomized
@@ -772,8 +772,8 @@ d11 <- d10 %>%
          mfi,logmfi,serocut,serocut_desc,seropos)
 
 summary(d11)
-write_rds(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
-write_csv(d11,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
+write_rds(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
+write_csv(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
 
 ```
 
@@ -785,7 +785,7 @@ Treatment coverage data are stored in a separate file from the morbidity data. H
 #-------------------------------
 # read in the raw file
 #-------------------------------
-dtr <-read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger-long-dedupe-forYing.csv")
+dtr <-read_csv("~/Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger-long-dedupe-forYing.csv")
 
 #-------------------------------
 # limit data to morbidity trial
@@ -847,7 +847,9 @@ dtr_cnames <- dtr3 %>%
   dplyr::select(clusterid, treatment_cluster_name = cluster_name, morbidity_cluster_name) %>%
   slice(1) 
 
-knitr::kable(dtr_cnames) %>% kableExtra::kable_styling(bootstrap_options = "striped")
+## COMMENTED OUT FOR PUBLIC FILES
+## TO OBSCURE CLUSTER NAMES
+## knitr::kable(dtr_cnames) %>% kableExtra::kable_styling(bootstrap_options = "striped")
 
 
 #-------------------------------
@@ -867,8 +869,8 @@ dtr4 <- dtr3 %>%
 # summarize and save the treatment data
 #-------------------------------
 summary(dtr4)
-write_rds(dtr4,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.rds")
-write_csv(dtr4,"~/box sync/mordor/mordor data/data/final-dbs/mordor-ab-treatment.csv")
+write_rds(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment.rds")
+write_csv(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment.csv")
 
 ```
 

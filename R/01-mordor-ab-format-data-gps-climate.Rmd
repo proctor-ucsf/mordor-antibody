@@ -1,5 +1,5 @@
 ---
-title: "Analysis of multiplex antibody endpoints in the MORDOR Niger trial"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens among children: A cluster-randomized, placebo-controlled trial in Niger"
 subtitle: "Format GPS and climate data for analysis"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -47,7 +47,7 @@ Read in the final morbidity dataset shared by Jermey Keenan in December 2019.
 #-------------------------------
 # read in the full morbidity file
 #-------------------------------
-md <- read_csv("~/Box sync/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
+md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
                       col_types = cols(code_bspot_ = col_character(),
                                        arm = col_character(),
                                        txlabelgwu = col_character(),
