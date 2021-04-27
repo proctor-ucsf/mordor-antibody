@@ -141,18 +141,39 @@ md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-m
                                        txdate = col_character(),
                                        dosex = col_character()))
 
+#-------------------------------
+# merge on the public IDs
+# and drop study IDs to protect
+# PII for public-facing data
+#
+# doing a separate match against
+# cluster IDs and child IDs 
+# because there are a small number
+# of DBS specimens that are linked
+# to cluster but not child IDs
+# and can still be included in 
+# the analysis
+#-------------------------------
+public_clids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-cluster.csv")
+
+public_ids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-child.csv") %>%
+  select(-gwu, -clusterid_public)
+
+md2 <- public_clids %>%
+  left_join(md, by = c("gwu")) %>%
+  left_join(public_ids, by = c("masterperson_mcd"))
+
 
 #-------------------------------
 # Select relevant variables 
 # rename variables to be more
 # convenient
 #-------------------------------
-md2 <- md %>% 
+md3 <- md2 %>% 
   dplyr::select(dbsid=code_bspot_,
-         childid = masterperson_mcd,
-         clname = gwu,
-         gwunotes_,
-         masterphase,
+         childid_public,
+         clusterid_public,
+         gwu,
          masterperson_mcd,
          arm,
          txlabelgwu,
@@ -174,37 +195,19 @@ md2 <- md %>%
          )
   
 #-------------------------------
-# filter out observations with
-# gwunotes_ not missing (indicates a problem observation)
-#
-# create a community ID variable
-# that isn't based on names
-#
 # for each community and phase
 # create a median treatment
 # date
 #-------------------------------
-md3 <- md2 %>% 
-  filter(is.na(gwunotes_)) %>%
-  dplyr::select(-gwunotes_) %>%
-  mutate(cluster_name = str_to_upper(clname))
-md3$clusterid <- paste0("C",group_indices(md3,cluster_name))
-
-
 md3 <- md3 %>%
-  group_by(clusterid,phase) %>%
+  group_by(clusterid_public,phase) %>%
   mutate(med_trdate = median(trdate,na.rm = TRUE))
 
-  
-  
 #-------------------------------
-# there are many age varibles
+# there are many age variables
 # do some reconciliation to
 # harmonize and create a single
 # child age
-#
-# TO BE UPDATED WITH INPUT FROM
-# JEREMY
 #
 # use agecc_mcd as the reference
 # age, but for children with
@@ -226,13 +229,11 @@ md4 <- md3 %>%
 Merge the two datasets
 
 ```{r merge antibody and morbidity data}
-
 #-------------------------------
 # join to the DBS measures
 #-------------------------------
 d3 <- d2 %>%
   left_join(md4,by = "dbsid")
-
 
 #-------------------------------
 # There are 53 / 5699 (0.9%) 
@@ -243,12 +244,12 @@ d3 <- d2 %>%
 # then put to the side for now
 #-------------------------------
 dbs_nomatch <- d3 %>%
-  filter(is.na(cluster_name)) %>%
+  filter(is.na(clusterid_public)) %>%
   dplyr::select(dbsid,antigen,mfi) %>%
   pivot_wider(id_cols = dbsid, names_from = "antigen", values_from = "mfi")
 
 d4 <- d3 %>%
-  filter(!is.na(cluster_name))
+  filter(!is.na(clusterid_public))
 
 # do not save a file for now.
 # instead, print to HTML notebook
@@ -277,13 +278,13 @@ d4 <- d4 %>%
 # the age used is the agemosblod_
 # variable (others are missing)
 #-------------------------------
-table(is.na(d4$childid[d4$antigen=="vsp3"]))
-newids <- data.frame(dbsid = d4$dbsid[is.na(d4$childid) & d4$antigen=="vsp3"],childid_recode = paste0("childid recode ",1:19),stringsAsFactors = FALSE)
+table(is.na(d4$childid_public[d4$antigen=="vsp3"]))
+newids <- data.frame(dbsid = d4$dbsid[is.na(d4$childid_public) & d4$antigen=="vsp3"],childid_recode = paste0("childid recode ",1:19),stringsAsFactors = FALSE)
 d4 <- d4 %>%
   left_join(newids, by = "dbsid") %>%
   mutate(
-    agem = ifelse(is.na(childid), agemosblood_, agem),
-    childid = ifelse(is.na(childid),childid_recode,childid)
+    agem = ifelse(is.na(childid_public), agemosblood_, agem),
+    childid_public = ifelse(is.na(childid_public),childid_recode,childid_public)
     )
 
 #-------------------------------
@@ -294,21 +295,21 @@ d4 <- d4 %>%
 # merge back to the main dataset
 #-------------------------------
 d_firsttr <- d4 %>%
-  group_by(clusterid, phase) %>%
+  group_by(clusterid_public, phase) %>%
   summarize(mintrdate = min(trdate,na.rm = TRUE), .groups = "keep")
-# cluster C51 is missing 
-# treatent information in phase6
-# assume it was 183 days later than phase0
-d_firsttr$mintrdate[d_firsttr$clusterid=="C51" & d_firsttr$phase == 6] <- as.Date("2015-07-06")+183
+# community-24 (public ID) is missing 
+# treatment information in phase 6
+# assume it was 183 days later than phase 0
+d_firsttr$mintrdate[d_firsttr$clusterid_public=="community-24" & d_firsttr$phase == 6] <- as.Date("2015-07-06")+183
 d_firsttr <- d_firsttr %>%
-  group_by(clusterid) %>%
+  group_by(clusterid_public) %>%
   mutate(firsttr = ifelse(phase == 0, mintrdate, NA),
          firsttr = as.Date(max(firsttr,na.rm = TRUE),origin ="1970-01-01"),
          diff_phase0 = mintrdate - firsttr,
          diff_phase = mintrdate - lag(mintrdate),
          diff_phase = ifelse(phase == 0, 0, diff_phase)) 
 
-d4 <- left_join(d4,d_firsttr, by = c("clusterid","phase"))
+d4 <- left_join(d4,d_firsttr, by = c("clusterid_public","phase"))
 
 
 #-------------------------------
@@ -338,8 +339,8 @@ From the monthly total rainfall data, merge by clusterid and year the start and 
 d_pre <- read_csv(here("data","mordor-ab-monthly-precip.csv"))
 
 d_pre2 <- d_pre %>%
-  group_by(clusterid,pyear) %>%
-  dplyr::select(clusterid,pyear,wet_start,wet_end) %>%
+  group_by(clusterid_public,pyear) %>%
+  dplyr::select(clusterid_public,pyear,wet_start,wet_end) %>%
   slice(1) %>%
   ungroup()
 
@@ -349,11 +350,11 @@ d_pre2 <- d_pre %>%
 # (since wet seasons do not straddle calendar years)
 #-------------------------------
 d4 <- d4 %>%
-  group_by(clusterid,phase) %>%
+  group_by(clusterid_public,phase) %>%
   mutate(medtestdate = as_date(median(testdate)),
          pyear = year(medtestdate)
   ) %>%
-  left_join(d_pre2, by = c("clusterid","pyear")) %>%
+  left_join(d_pre2, by = c("clusterid_public","pyear")) %>%
   dplyr::select(-pyear)
 
 #-------------------------------
@@ -383,8 +384,9 @@ As of September 3, 2020, this code is no longer evaluated. The analysis was unma
 # assignments, put to the side
 #-------------------------------
 comd <- d4 %>%
-  dplyr::select(clusterid,arm) %>%
-  group_by(clusterid) %>%
+  ungroup() %>%
+  dplyr::select(clusterid_public,arm) %>%
+  group_by(clusterid_public) %>%
   slice(1)
 write_csv(comd,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
 
@@ -394,7 +396,7 @@ write_csv(comd,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
 #-------------------------------
 set.seed(12345)
 comd_rr <- comd %>%
-  dplyr::select(clusterid) %>%
+  dplyr::select(clusterid_public) %>%
   ungroup() %>%
   mutate(arm = sample(rep(c("sun","moon"),15),size=30,replace=FALSE))
 
@@ -404,7 +406,7 @@ comd_rr <- comd %>%
 #-------------------------------
 d5 <- d4 %>%
   dplyr::select(-arm) %>%
-  left_join(comd_rr,by="clusterid") %>%
+  left_join(comd_rr,by="clusterid_public") %>%
   mutate(arm = factor(arm,levels=c("sun","moon")))
 
 ```
@@ -638,7 +640,7 @@ Try something more complicated.  For children with longidudinal measurements, id
 #-------------------------------
 dl <- d8 %>%
   ungroup() %>%
-  group_by(childid,antigen) %>%
+  group_by(childid_public,antigen) %>%
   mutate(nobs = n(),
          obsnum = row_number()) %>%
   filter(nobs>1 & nobs < 6)
@@ -649,7 +651,7 @@ dl <- d8 %>%
 # first measurement
 #-------------------------------
 dl2 <- dl %>%
-  group_by(childid,antigen) %>%
+  group_by(childid_public,antigen) %>%
   mutate(first_young = ifelse(agem < 12 & obsnum < nobs, 1,0),
          first_young = max(first_young)) %>%
   filter(first_young == 1) 
@@ -660,8 +662,8 @@ dl2 <- dl %>%
 # between measurements
 #-------------------------------
 dl3 <- dl2 %>%
-  group_by(childid,antigen) %>%
-  arrange(antigen,childid,phase) %>%
+  group_by(childid_public,antigen) %>%
+  arrange(antigen,childid_public,phase) %>%
   mutate(dlogmfi = lead(logmfi)-logmfi)
 
 #-------------------------------
@@ -751,7 +753,11 @@ pdens
 ```{r final seropositivity cutoffs}
 d10 <- d9 %>%
   mutate(serocut = ifelse(is.na(excut),round(10^pucut,0),excut),
-         serocut_desc = ifelse(is.na(excut),"presumed unexp","external"),
+         serocut_desc = case_when(
+           !is.na(excut) ~ "external",
+           is.na(excut) & antigen != "gst" ~ "presumed unexp",
+           TRUE ~ as.character(NA)
+         ),
          seropos = ifelse(mfi>serocut,1,0))
 ```
 
@@ -764,16 +770,31 @@ d10 <- d9 %>%
 # and save data
 #-------------------------------
 d11 <- d10 %>%
-  dplyr::select(clusterid,phase,arm,childid,agem,agem_start, agem_start_under6, sex, 
+  dplyr::select(gwu,clusterid_public,phase,arm,
+                masterperson_mcd,childid_public,agem,agem_start, agem_start_under6, sex, 
          testdate,
          wet_start,wet_end,season,
          pf_thicksmear,pf_density,pf_gameto,
          dbsid,type,well,pathogen,antigen,antigenf,
          mfi,logmfi,serocut,serocut_desc,seropos)
-
-summary(d11)
 write_rds(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
 write_csv(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
+
+#-------------------------------
+# save a public version of the 
+# data to share
+# dropping study IDs and antigens
+# not included in the malaria
+# and bacteria/protozoa analyses
+#-------------------------------
+d12 <- d11 %>%
+  select(-gwu, -masterperson_mcd,-pf_thicksmear,-pf_density,-pf_gameto) %>%
+  filter(!antigen %in% c("pgp3","ct694","nie")) %>%
+  mutate(antigenf = factor(antigenf))
+summary(d12)
+
+write_rds(d12,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis-public.rds")
+write_csv(d12,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis-public.csv")
 
 ```
 
@@ -785,7 +806,17 @@ Treatment coverage data are stored in a separate file from the morbidity data. H
 #-------------------------------
 # read in the raw file
 #-------------------------------
-dtr <-read_csv("~/Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger-long-dedupe-forYing.csv")
+dtr <-read_csv("~/Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger-long-dedupe-forYing.csv") %>%
+  rename(masterperson_mcd = masterperson)
+
+#-------------------------------
+# merge on the public IDs
+# and drop study IDs to protect
+# PII for public-facing data
+#-------------------------------
+public_ids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-child.csv")
+dtr2 <- dtr %>%
+  left_join(public_ids, by = c("masterperson_mcd"))
 
 #-------------------------------
 # limit data to morbidity trial
@@ -796,70 +827,42 @@ dtr <-read_csv("~/Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger
 # format a few variables then
 # limit to relevant vars
 #-------------------------------
-dtr2 <- dtr %>%
+dtr2 <- dtr2 %>%
   filter(mortalityonly999 == 0) %>%
   filter(eligx == 1) %>%
   # identify children who were treated based on txstatusx
   mutate(treated = ifelse(txstatusx == 1, 1, 0)) %>%
   # convert treatment date from Stata dates into R
   mutate(trdate = as.Date(newccdatex, origin = "1960-01-01")) %>%
-  # format cluster names for merge
-  mutate(cluster_name = str_to_upper(randomunit999)) %>%
   # limit to relevant vars
-  dplyr::select(cluster_name,dupwpid_a,childid=masterperson, phase, agem = agex, female = femalex, trdate, treated, dose=dosex)
+  dplyr::select(gwu = randomunit999, clusterid_public,childid_public,dupwpid_a, phase, agem = agex, female = femalex, trdate, treated, dose=dosex)
 
 #-------------------------------
-# grab the community ID variables 
-# created above for the morbidity data
-# the community names do not match 
-# between these data sources (!)
-# reinforcing the importance of
-# creating a standard ID variable
-#
-# use individiual child IDs to join 
 # then fill in cluster level
-# information for any children
+# public IDs for any children
 # not in the morbidity dataset
 #-------------------------------
-dchids <- d10 %>%
-  ungroup() %>%
-  dplyr::select(childid, clusterid, morbidity_cluster_name = cluster_name, arm) %>%
-  group_by(childid) %>%
-  slice(1)
-
 dtr3 <- dtr2 %>%
-  left_join(dchids, by=c("childid")) %>%
-  ungroup() %>%
-  group_by(cluster_name) %>%
-  tidyr::fill(clusterid, .direction = "downup") %>%
-  tidyr::fill(morbidity_cluster_name, .direction = "downup") %>%
-  tidyr::fill(arm, .direction = "downup") %>%
+  group_by(gwu) %>%
+  tidyr::fill(clusterid_public, .direction = "downup") %>%
   ungroup() 
-#-------------------------------
-# print a list of cluster IDs
-# and cluster names from the
-# treatment data and morbidity
-# data, just in case
-# it might be useful
-#-------------------------------
-dtr_cnames <- dtr3 %>%
-  group_by(clusterid) %>%
-  dplyr::select(clusterid, treatment_cluster_name = cluster_name, morbidity_cluster_name) %>%
-  slice(1) 
-
-## COMMENTED OUT FOR PUBLIC FILES
-## TO OBSCURE CLUSTER NAMES
-## knitr::kable(dtr_cnames) %>% kableExtra::kable_styling(bootstrap_options = "striped")
-
 
 #-------------------------------
-# restrict to relevant
-# variables
+# merge on treatment assignments
+#-------------------------------
+dtrarm <- d11 %>%
+  ungroup() %>%
+  select(clusterid_public, arm) %>%
+  group_by(clusterid_public, arm) %>%
+  slice(1)
 dtr4 <- dtr3 %>%
-  dplyr::select(clusterid,arm,phase,childid,agem,female,trdate,treated,dose)
+  left_join(dtrarm, by = "clusterid_public")
 
-
-
+#-------------------------------
+# restrict to relevant variables
+#-------------------------------
+dtr4 <- dtr4 %>%
+  dplyr::select(clusterid_public,arm,phase,childid_public,agem,female,trdate,treated,dose)
 ```
 
 ## Save the treatment dataset
@@ -869,8 +872,8 @@ dtr4 <- dtr3 %>%
 # summarize and save the treatment data
 #-------------------------------
 summary(dtr4)
-write_rds(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment.rds")
-write_csv(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment.csv")
+write_rds(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment-public.rds")
+write_csv(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment-public.csv")
 
 ```
 

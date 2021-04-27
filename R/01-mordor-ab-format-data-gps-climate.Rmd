@@ -25,7 +25,6 @@ here()
 #----------------------------
 source(here("R","mordor-ab-Config.R"))
 
-
 #----------------------------
 # spatial packages
 # used only for this script
@@ -34,9 +33,9 @@ source(here("R","mordor-ab-Config.R"))
 # conflicts with dplyr::select)
 #----------------------------
 library(sp)
+library(rgdal)
 library(raster)
 library(ncdf4)
-
 ```
 
 # Load cluster list from morbidity data
@@ -54,45 +53,15 @@ md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-m
                                        txdate = col_character(),
                                        dosex = col_character()))
 
+#-------------------------------
+# merge on the public IDs
+# and drop study IDs to protect
+# PII for public-facing data
+#-------------------------------
+public_ids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-child.csv")
 
-#-------------------------------
-# The code below follows the
-# approach used in the main
-# data formatting script. But,
-# NOTE: this is slightly fragile
-# in that it creates a new 
-# cluster ID that should be the
-# same as the main data processing
-# step (confirmed through inspection)
-# but is not necessarily as robust
-# as retaining the cluster name
-# however, we have dropped the
-# cluster name from the main 
-# data set to protect confidentiality
-#-------------------------------
-
-  
-#-------------------------------
-# filter out observations with
-# gwunotes_ not missing (indicates a problem observation)
-#
-# create a community ID variable
-# that isn't based on names
-#
-# for each community and phase
-# create a median treatment
-# date
-#-------------------------------
-md2 <- md %>% 
-  dplyr::select(gwu,gwunotes_) %>%
-  filter(is.na(gwunotes_)) %>%
-  dplyr::select(-gwunotes_) %>%
-  group_by(gwu) %>%
-  slice(1) %>%
-  mutate(cluster_name = str_to_upper(gwu))
-  
-md2$clusterid <- paste0("C",group_indices(md2,cluster_name)) 
-
+md2 <- md %>%
+  left_join(public_ids, by = c("gwu","masterperson_mcd"))
 ```
 
 # Load MORDOR GPS
@@ -104,16 +73,16 @@ Load GPS centroids for MORDOR morbidity clusters
 # Load MORDOR morbidity cluster
 # GPS coordinates
 #-------------------------------
-d_gps <- read_csv(here("data","mordor-morbidity-cluster-gps.csv")) %>%
-  mutate(cluster_name = str_to_upper(gwu))
+d_gps <- read_csv(here("data","mordor-morbidity-cluster-gps.csv")) #%>%
+  # mutate(cluster_name = str_to_upper(gwu))
 
 #-------------------------------
 # merge the cluster IDs
 # onto the GPS coordinates
 #-------------------------------
 d_gps2 <- d_gps %>%
-  left_join(md2, by = "cluster_name") %>%
-  dplyr::select(clusterid,cluster_name,longitude,latitude)
+  left_join(md2, by = "gwu") %>%
+  dplyr::select(clusterid_public,gwu,longitude,latitude)
 
 ```
 
@@ -137,7 +106,6 @@ https://www.benjaminbell.co.uk/2018/01/getting-climate-data.html
 # dataset into R 
 #-------------------------------
 d_pre <- brick(here("data/cru_ts4_04_2011-2019","cru_ts4.04.2011.2019.pre.dat.nc"), varname="pre")
-
 ```
 
 # Spatial merge of CRU to clusters
@@ -147,24 +115,28 @@ d_pre <- brick(here("data/cru_ts4_04_2011-2019","cru_ts4.04.2011.2019.pre.dat.nc
 # Spatial merge of CRU time series 
 # to the 30 MORDOR morbidity clusters
 #-------------------------------
-mordor_pre <- data.frame(clusterid=d_gps2$clusterid,
-                         cluster_name=d_gps2$cluster_name,
+mordor_pre <- data.frame(clusterid_public=d_gps2$clusterid_public,
+                         gwu=d_gps2$gwu,
                          extract(d_pre, d_gps2[c("longitude","latitude")])
-)
+) %>%
+  filter(!is.na(clusterid_public))
 
 #-------------------------------
 # reshape the data from wide
 # to long format
 #-------------------------------
 d_pre2 <- mordor_pre %>%
-  group_by(clusterid,cluster_name) %>%
+  group_by(clusterid_public,gwu) %>%
   pivot_longer(cols = starts_with("X"),names_to = "rawdate", names_prefix = "X", values_to = "pre")
 
 #-------------------------------
 # format the dates
+# subset to one observation per cluster, per day
 #-------------------------------
 d_pre3 <- d_pre2 %>%
-  mutate(pdate = as_date(rawdate))
+  mutate(pdate = as_date(rawdate))  %>%
+  group_by(clusterid_public,pdate) %>%
+  slice(1)
 
 ```
 
@@ -175,13 +147,11 @@ Plot the precipitation time series for the 30 communities
 All communities share the same overall precipitation patterns.  Therefore, we can be confident in defining wet seasons consistently across communities.
 
 ```{r plot precip time series}
-prets_plot <- ggplot(data = d_pre3, aes(x = pdate, y = pre, color = clusterid)) +
+prets_plot <- ggplot(data = d_pre3, aes(x = pdate, y = pre, color = clusterid_public)) +
   geom_line(alpha = 0.3) +
   labs(y = "monthly precipitation (mm)", x = "date")
 
 prets_plot
-
-
 ```
 
 # Identify the wet season
@@ -192,14 +162,12 @@ Create indicators of "wet season", defined as >4 mm rainfall in each month. A 4 
 d_pre4 <- d_pre3 %>%
   mutate(season = ifelse(pre>4, "wet season","dry season"),
          season = factor(season))
-
-
 ```
 
 Plot of precipitation with seasons indicated
 
 ```{r plot precip time series coded as season}
-prets_plot2 <- ggplot(data = d_pre4 %>% filter(clusterid=="C7"), aes(x = pdate, y = pre)) +
+prets_plot2 <- ggplot(data = d_pre4 %>% filter(clusterid_public=="community-1"), aes(x = pdate, y = pre)) +
   geom_polygon(alpha = 0.2) +
   geom_point(aes(color = season), alpha = 1, size = 0.7) +
   scale_color_manual(values = cbpal[c(2,3)],guide = guide_legend(override.aes = list(alpha=1, size = 2))) +
@@ -223,25 +191,24 @@ Include monthly total precipitation estiamtes for each cluster, along with the e
 # estimate the start and end of the
 # wet season in each year
 #------------------------------------
-
 d_pre5 <- d_pre4 %>%
   ungroup() %>%
   mutate(pmnth = month(pdate),
          pyear = year(pdate)) %>%
-  group_by(clusterid,pyear,season) %>%
+  group_by(clusterid_public,pyear,season) %>%
   mutate(s_start = min(pdate),
          s_end = max(pdate),
          wet_start = ifelse(season=="wet season",s_start,NA),
          wet_end = ifelse(season == "wet season",s_end,NA)) %>%
-  group_by(clusterid,pyear) %>%
+  group_by(clusterid_public,pyear) %>%
   mutate(wet_start = as_date(max(wet_start, na.rm = TRUE)),
          wet_end = as_date(max(wet_end, na.rm = TRUE))
          ) %>%
-  dplyr::select(clusterid,pdate,pyear,pmnth,season,wet_start,wet_end,pre) %>%
-  arrange(clusterid,pdate)
+  # restrict to relevant variables
+  dplyr::select(clusterid_public,pdate,pyear,pmnth,season,wet_start,wet_end,pre) %>%
+  arrange(clusterid_public,pdate) 
 
-write_csv(d_pre5, path = here("data","mordor-ab-monthly-precip.csv"))
-
+write_csv(d_pre5, file = here("data","mordor-ab-monthly-precip.csv"))
 ```
 
 ```{r detach spatial packages}
@@ -251,8 +218,8 @@ write_csv(d_pre5, path = here("data","mordor-ab-monthly-precip.csv"))
 #------------------------------------
 detach("package:ncdf4", unload=TRUE)
 detach("package:raster", unload=TRUE)
+detach("package:rgdal", unload=TRUE)
 detach("package:sp", unload=TRUE)
-
 ```
 
 
