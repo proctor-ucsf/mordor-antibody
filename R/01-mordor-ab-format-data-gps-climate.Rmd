@@ -73,8 +73,7 @@ Load GPS centroids for MORDOR morbidity clusters
 # Load MORDOR morbidity cluster
 # GPS coordinates
 #-------------------------------
-d_gps <- read_csv(here("data","mordor-morbidity-cluster-gps.csv")) #%>%
-  # mutate(cluster_name = str_to_upper(gwu))
+d_gps <- read_csv("~/Box/mordor/mordor data/data/final-gps/mordor-morbidity-cluster-gps.csv")
 
 #-------------------------------
 # merge the cluster IDs
