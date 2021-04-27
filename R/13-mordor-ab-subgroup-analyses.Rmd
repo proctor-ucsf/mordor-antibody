@@ -47,14 +47,19 @@ source(here("R","mordor-ab-Functions.R"))
 # data created by
 # mordor-ab-format-data.Rmd
 #-------------------------------
-d <- read_rds(here("data","mordor-ab-analysis.rds"))
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
 
 #-------------------------------
-# drop the trachoma, strongyloides, 
-# and GST negative control values
+# drop "_public" suffix from IDs
+#-------------------------------
+d <- d %>%
+  rename(clusterid = clusterid_public, childid = childid_public)
+
+#-------------------------------
+# drop GST negative control values
 #-------------------------------
 d2 <- d %>%
-  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  filter(!antigen %in% c("gst")) %>%
   mutate(antigenf = factor(antigenf),
          phasef = factor(phase))
 
@@ -72,7 +77,6 @@ d2 <- d2 %>%
 d2 <- d2 %>%
   filter(phase > 0) %>%
   mutate(phasef = droplevels(phasef))
-
 
 #-------------------------------
 # age restrictions based on 

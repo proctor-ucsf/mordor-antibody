@@ -44,9 +44,13 @@ source(here("R","mordor-ab-Functions.R"))
 # data created by
 # mordor-ab-format-data.Rmd
 #-------------------------------
-d <- read_rds(here("data","mordor-ab-analysis.rds"))
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
 
-
+#-------------------------------
+# drop "_public" suffix from IDs
+#-------------------------------
+d <- d %>%
+  rename(clusterid = clusterid_public, childid = childid_public)
 ```
 
 
@@ -59,7 +63,7 @@ d <- read_rds(here("data","mordor-ab-analysis.rds"))
 
 ```{r plot n by month, fig.width = 10, fig.height = 6}
 n_by_phase_month <- d %>%
-  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
+  filter(!antigen %in% c("gst")) %>%
   mutate(antigenf = factor(antigenf),
          phasef = factor(phase)) %>%
   # create a month factor
@@ -121,9 +125,10 @@ cl_test_months$pre <- clnum*5
 
 #-------------------------------
 # load monthly precipitation data
+# created by 01-mordor-ab-format-data-gps-climate.Rmd
 #-------------------------------
-dp <- read_csv(file = here("data","mordor-ab-monthly-precip.csv"))
-
+dp <- read_csv(file = here("data","mordor-ab-monthly-precip.csv")) %>%
+  rename(clusterid = clusterid_public)
 
 #-------------------------------
 # restrict to years 2015-2018
@@ -139,7 +144,7 @@ dp <- dp %>%
 # plot precipitation over time
 #-------------------------------
 pcols <- cbpal[c(2,6)]
-plot_pre <- ggplot(data = dp %>% filter(clusterid=="C7"), aes(x = pdate, y = pre)) +
+plot_pre <- ggplot(data = dp %>% filter(clusterid=="community-1"), aes(x = pdate, y = pre)) +
   geom_polygon(alpha = 0.2) +
   geom_point(data = cl_test_months, aes(x = pdate, y = pre, color = arm), alpha = 1, size = 0.7) +
   scale_color_manual(values = pcols,guide = guide_legend(override.aes = list(alpha=1, size = 2))) +
@@ -167,8 +172,8 @@ Alternate visualization, just shading months of measurment
 #-------------------------------
 phase_test_months <- cl_test_months %>%
   group_by(phasef) %>%
-  # drop cluster C64 in phase 12 — it was way off cycle
-  mutate(dropobs = ifelse(clusterid == "C64" & phasef=="12",1,0)) %>%
+  # drop community-23 in phase 12 — it was way off cycle
+  mutate(dropobs = ifelse(clusterid == "community-23" & phasef=="12",1,0)) %>%
   filter(dropobs == 0) %>%
   summarize(mindate = min(pdate),
             maxdate = max(pdate), 
@@ -180,7 +185,7 @@ phase_test_months <- cl_test_months %>%
 # plot precipitation over time
 #-------------------------------
 pcols <- cbpal[c(2,3,4,7,8)]
-plot_pre <- ggplot(data = dp %>% filter(clusterid=="C7"), aes(x = pdate, y = pre)) +
+plot_pre <- ggplot(data = dp %>% filter(clusterid=="community-1"), aes(x = pdate, y = pre)) +
   geom_polygon(alpha = 0.3) +
   geom_rect(data=phase_test_months, inherit.aes = FALSE, aes(xmin = mindate, xmax = maxdate, ymin = 0, ymax = 250, fill = phasef), alpha=0.3, color =NA) +
   geom_text(data=phase_test_months, inherit.aes = FALSE, aes(x = treatdate,  y = 240, label = phasef),color = pcols) +

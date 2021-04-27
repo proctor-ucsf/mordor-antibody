@@ -46,7 +46,13 @@ source(here("R","mordor-ab-Functions.R"))
 # data created by
 # mordor-ab-format-data.Rmd
 #-------------------------------
-d <- read_rds(here("data","mordor-ab-analysis.rds"))
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
+
+#-------------------------------
+# drop "_public" suffix from IDs
+#-------------------------------
+d <- d %>%
+  rename(clusterid = clusterid_public, childid = childid_public)
 
 # filter to P. falciparum antigens
 # filter to post-baseline measurements
@@ -365,8 +371,8 @@ gfit <- gam(seropos ~ s(agem, bs="cr") + arm +
 gsum <- summary(gfit)
     # estimate average seroconversion rate by arm
     # use a parametric bootstrap of the posterior VCOV matrix to get inference
-    newd0 <- data.frame(agem=c(min(d4$agem),max(d4$agem)), arm = "placebo", dummy=0, clusteridf = "C1")
-    newd1 <- data.frame(agem=c(min(d4$agem),max(d4$agem)), arm = "azithro", dummy=0, clusteridf = "C1")
+    newd0 <- data.frame(agem=c(min(d4$agem),max(d4$agem)), arm = "placebo", dummy=0, clusteridf = "community-1")
+    newd1 <- data.frame(agem=c(min(d4$agem),max(d4$agem)), arm = "azithro", dummy=0, clusteridf = "community-1")
     lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(d4$agem),a2=max(d4$agem),nreps=10000)
     lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(d4$agem),a2=max(d4$agem),nreps=10000)
     # estimate HR and 95% CI from the model from the model 
@@ -562,8 +568,8 @@ gfit1236 <- gam(seropos ~ s(agem, bs="cr") + arm +
 gsum <- summary(gfit1236)
     # estimate average seroconversion rate by arm
     # use a parametric bootstrap of the posterior VCOV matrix to get inference
-    newd0 <- data.frame(agem=c(min(d5$agem),max(d5$agem)), arm = "placebo", dummy=0, clusteridf = "C1")
-    newd1 <- data.frame(agem=c(min(d5$agem),max(d5$agem)), arm = "azithro", dummy=0, clusteridf = "C1")
+    newd0 <- data.frame(agem=c(min(d5$agem),max(d5$agem)), arm = "placebo", dummy=0, clusteridf = "community-1")
+    newd1 <- data.frame(agem=c(min(d5$agem),max(d5$agem)), arm = "azithro", dummy=0, clusteridf = "community-1")
     lambda0 <- avgFOI(gfit1236, newdata=newd0, a1=min(d5$agem),a2=max(d5$agem),nreps=10000)
     lambda1 <- avgFOI(gfit1236, newdata=newd1, a1=min(d5$agem),a2=max(d5$agem),nreps=10000)
     # estimate HR and 95% CI from the model from the model 

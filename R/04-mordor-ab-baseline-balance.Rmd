@@ -36,10 +36,6 @@ source(here("R","mordor-ab-Config.R"))
 source(here("R","mordor-ab-Functions.R"))
 ```
 
-
-
-
-
 # Load the antibody data
 
 ```{r load antibody data}
@@ -48,21 +44,22 @@ source(here("R","mordor-ab-Functions.R"))
 # data created by
 # mordor-ab-format-data.Rmd
 #-------------------------------
-d <- read_rds(here("data","mordor-ab-analysis.rds"))
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
 
 #-------------------------------
-# drop the trachoma, strongyloides, 
-# and GST negative control values
+# drop "_public" suffix from IDs
 #-------------------------------
 d2 <- d %>%
-  filter(!antigen %in% c("pgp3","ct694","nie","gst")) 
+  rename(clusterid = clusterid_public, childid = childid_public)
+
 
 #-------------------------------
-# remove CTB becasue it is so
+# remove CTB because it is so
 # highly correlated with ETEC
+# remove GST negative control
 #-------------------------------
 d2 <- d2 %>%
-  filter(!antigen %in% c("ctb")) %>%
+  filter(!antigen %in% c("ctb","gst")) %>%
   mutate(antigenf = factor(antigenf))
 ```
 

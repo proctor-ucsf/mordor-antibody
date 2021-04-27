@@ -50,7 +50,15 @@ source(here("R","mordor-ab-Functions.R"))
 # data created by
 # mordor-ab-format-data.Rmd
 #-------------------------------
-d <- read_rds(here("data","mordor-ab-analysis.rds"))
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
+
+
+#-------------------------------
+# drop "_public" suffix from IDs
+#-------------------------------
+d <- d %>%
+  rename(clusterid = clusterid_public, childid = childid_public)
+
 
 #-------------------------------
 # limit to ETEC and cholera

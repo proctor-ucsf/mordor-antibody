@@ -46,15 +46,13 @@ source(here("R","mordor-ab-Functions.R"))
 # data created by
 # mordor-ab-format-data.Rmd
 #-------------------------------
-d <- read_rds(here("data","mordor-ab-analysis.rds"))
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
 
 #-------------------------------
-# drop the trachoma, strongyloides, 
-# and GST negative control values
+# drop "_public" suffix from IDs
 #-------------------------------
 d1 <- d %>%
-  filter(!antigen %in% c("pgp3","ct694","nie","gst")) %>%
-  mutate(antigenf = factor(antigenf))
+  rename(clusterid = clusterid_public, childid = childid_public)
 
 #-------------------------------
 # age restrictions based on 
@@ -229,8 +227,9 @@ table(dchild24$arm)
 Read in treatement data
 
 ```{r read in treatment data}
-dtr <- read_rds(here("data","mordor-ab-treatment.rds"))
-
+dtr <- read_rds(here("data","mordor-ab-treatment-public.rds")) %>%
+  # drop "_public" suffix from IDs
+  rename(clusterid = clusterid_public, childid = childid_public)
 ```
 
 ## Summarize children per cluster
