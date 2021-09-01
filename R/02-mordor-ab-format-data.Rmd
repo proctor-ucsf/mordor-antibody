@@ -154,9 +154,9 @@ md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-m
 # and can still be included in 
 # the analysis
 #-------------------------------
-public_clids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-cluster.csv")
+public_clids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-cluster.csv")
 
-public_ids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-child.csv") %>%
+public_ids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv") %>%
   select(-gwu, -clusterid_public)
 
 md2 <- public_clids %>%
@@ -814,7 +814,7 @@ dtr <-read_csv("~/Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger
 # and drop study IDs to protect
 # PII for public-facing data
 #-------------------------------
-public_ids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-child.csv")
+public_ids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv")
 dtr2 <- dtr %>%
   left_join(public_ids, by = c("masterperson_mcd"))
 
