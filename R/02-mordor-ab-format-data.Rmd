@@ -154,10 +154,10 @@ md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-m
 # and can still be included in 
 # the analysis
 #-------------------------------
-public_clids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-cluster.csv") 
+public_clids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-cluster.csv")
 
 public_ids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv") %>%
-  select(-gwu, -gwu_detail, -clusterid_public)
+  select(-gwu, -clusterid_public)
 
 md2 <- public_clids %>%
   left_join(md, by = c("gwu")) %>%
