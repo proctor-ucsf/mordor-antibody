@@ -58,10 +58,10 @@ md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-m
 # and drop study IDs to protect
 # PII for public-facing data
 #-------------------------------
-public_ids <- read_csv("~/Box/mordor/mordor data/public-IDs/mordor-morbidity-public-IDs-child.csv")
+public_ids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv")
 
 md2 <- md %>%
-  left_join(public_ids, by = c("gwu","masterperson_mcd"))
+  left_join(public_ids, by = c("gwu","txlabelgwu","masterperson_mcd"))
 ```
 
 # Load MORDOR GPS

@@ -1,0 +1,587 @@
+---
+title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+subtitle: "Sensitivity analysis that varies cutoff values +/- 20%"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Repeat the primary analysis that compares azithromycin and placebo groups by seropositivity and seroconversion rates, varying the seropositivity cutoff used in the primary analysis by +/- 20%.
+
+# Preamble
+
+```{r preamble}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
+
+#-------------------------------
+# drop "_public" suffix from IDs
+#-------------------------------
+d <- d %>%
+  rename(clusterid = clusterid_public, childid = childid_public)
+
+#-------------------------------
+# drop tGST negative control values
+#-------------------------------
+d1 <- d %>%
+  filter(!antigen %in% c("gst")) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# drop cholera CTB because so 
+# highly cross-reactive with ETEC LTB
+#-------------------------------
+d1 <- d1 %>%
+  filter( !antigen %in% c("ctb") ) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# drop baseline measurements
+#-------------------------------
+d2 <- d1 %>%
+  filter(phase > 0)
+
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages with evidence
+# for maternal IgG contributions
+#
+# Bacteria and protozoa: 6 mo - 59 mo
+#
+# ETEC LTB: 6 mo - 24 mo (no heterogeneity at older ages)
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+d2 <- d2 %>%
+  filter(agem >= 6) %>%
+  mutate(agedrop = case_when(
+    antigen %in% c("etec") & (agem > 24) ~ 1,
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+    TRUE ~ 0
+  )
+         ) %>%
+  filter(agedrop == 0)
+
+```
+
+# Create sensitivity seropositivity indicators
+
+Create seropositivity indicators based on increasing and decreasing the seropositivity cutoff values by 20%.
+
+```{r sensitivity seropositivity cutoffs}
+d3 <- d2 %>%
+  mutate(serocut_plus20 = serocut*1.2,
+         serocut_minus20 = serocut*0.8,
+         seropos_plus20 = ifelse(logmfi > log10(serocut_plus20),1,0 ),
+         seropos_minus20 = ifelse(logmfi > log10(serocut_minus20),1,0 ),)
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+Then bind those to the original data frame to create a seropositivity dataset for analyses.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- d3 %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phase) %>%
+  mutate(seropos=max(seropos),
+         seropos_plus20 = max(seropos_plus20),
+         seropos_minus20 = max(seropos_minus20)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella groups B or D LPS",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  )) %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos,seropos_plus20, seropos_minus20)
+
+
+```
+
+```{r create seropositivity dataset, warning=FALSE}
+d_serop <- d3 %>%
+  # drop pathogens w/ composite indicators
+  filter(!pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  # add composite indicators
+  bind_rows(d_enteric_comps) %>%
+  # create new factor levels that includes composite indicators
+  mutate(antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Salmonella groups B or D LPS",
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+   levels(d2$antigenf)[10:19]) )
+         ) %>%
+  # drop extra variables (MFI doesn't correspond to composite seropos so drop)
+  dplyr::select(-mfi,-logmfi,-agedrop)
+
+```
+
+# Summarize the number of measurements reclassified by pathogen
+
+Summarize measurements by pathogen and seropositivity status depending on the cutoff used.
+
+```{r n by pathogen and seropositivity cutoff}
+#-----------------------------
+# summarize number seropositive
+# by different cutoffs
+# and the difference in number
+# of seropositive after varying
+# the cutoff values
+#-----------------------------
+d_n <- d_serop %>%
+  group_by(antigenf) %>%
+  summarize(nobs = n(),
+            seropos = sum(seropos),
+            seropos_minus20 = sum(seropos_minus20),
+            seropos_plus20 = sum(seropos_plus20), 
+            .groups = "keep") %>%
+  mutate(diff_minus20 = seropos_minus20 - seropos,
+         diff_plus20 = seropos_plus20 - seropos,
+         seroprev = seropos/nobs,
+         seroprev_minus20 = seropos_minus20/nobs,
+         seroprev_plus20 = seropos_plus20/nobs) %>%
+  # create formatted columms for a table
+  mutate(seroprevf = paste0(format(seropos,big.mark = ",")," (",sprintf("%1.1f",seroprev*100),"%)"),
+         seroprev_minus20f = paste0(format(seropos_minus20,big.mark = ",")," (",sprintf("%1.1f",seroprev_minus20*100),"%)"),
+         seroprev_plus20f = paste0(format(seropos_plus20,big.mark = ",")," (",sprintf("%1.1f",seroprev_plus20*100),"%)")
+           )
+
+```
+
+```{r table of seroprev by pathogen adjusting the cutoff}
+knitr::kable(d_n %>% select(antigenf, nobs, seroprevf, seroprev_minus20f, seroprev_plus20f), 
+             col.names = c("Pathogen","N", "Seropositive (%)", "Seropositive (%)", "Seropositive (%)")) %>%
+  add_header_above(c(" " = 2, "Primary Analysis" = 1, "MFI Cutoff +20%" = 1, "MFI Cutoff -20%" = 1)) %>%
+  kable_styling(bootstrap_options = "striped")
+
+```
+
+
+# Seroprevalence
+
+## Estimate means by arm
+```{r seroprev by arm}
+
+#-----------------------------
+# tally number of observations
+# by antigen (including composites)
+#-----------------------------
+n_serop <- d_serop %>%
+  group_by(pathogen,antigenf,arm) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = nobs) %>%
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
+
+#-----------------------------
+# estimate seroprevalence by arm
+# and difference in seroprevalence
+#-----------------------------
+mu_serop <- d_serop %>%
+  group_by(pathogen,antigenf,arm) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_serop) %>%
+  mutate(diff = azithro - placebo)
+
+mu_serop_minus20 <- d_serop %>%
+  group_by(pathogen,antigenf,arm) %>%
+  summarize(mean_serop_minus20 = mean(seropos_minus20), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_serop_minus20) %>%
+  mutate(diff_minus20 = azithro - placebo) %>%
+  rename(azithro_minus20 = azithro, placebo_minus20 = placebo)
+
+mu_serop_plus20 <- d_serop %>%
+  group_by(pathogen,antigenf,arm) %>%
+  summarize(mean_serop_plus20 = mean(seropos_plus20), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_serop_plus20) %>%
+  mutate(diff_plus20 = azithro - placebo) %>%
+  rename(azithro_plus20 = azithro, placebo_plus20 = placebo)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_serop <- left_join(n_serop, mu_serop, by=c("pathogen","antigenf")) %>%
+  left_join(mu_serop_minus20, by = c("pathogen","antigenf")) %>%
+  left_join(mu_serop_plus20, by = c("pathogen","antigenf"))
+            
+```
+
+## Bootstrap 95% CIs
+```{r bootstrap mean seropos diff}
+#-----------------------------
+# bootstrap resample communities
+# with replacement to estimate
+# 95% CIs for difference in seroprev
+#-----------------------------
+nreps <- 1000
+ncl <- length(unique(d_serop$clusterid))
+bsamp <- matrix(sample(unique(d_serop$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
+d_serop_boot <- d_serop %>% ungroup %>% select(clusterid,antigenf,arm,seropos,seropos_minus20,seropos_plus20)
+
+mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %dopar% {
+  set.seed(bi)
+  # if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
+  
+  di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
+                  d_serop_boot, by = "clusterid")
+  di %>%
+  group_by(antigenf,arm) %>%
+  summarize(seroprev = mean(seropos), 
+            seroprev_minus20 = mean(seropos_minus20),
+            seroprev_plus20 = mean(seropos_plus20),
+            .groups = "keep") %>%
+    mutate(bootrep = bi)
+}
+```
+
+```{r mean seroprev bootstrap cis}
+#-----------------------------
+# calculate percentile 95%
+# CIs from the bootstrap
+# distribution merge to estimates
+#-----------------------------
+mu_serop_ci <- mu_serop_boot %>%
+  group_by(antigenf, bootrep) %>%
+  arrange(antigenf,bootrep, arm) %>%
+  # calculate the difference, azithro - placebo
+  # in each boostrap replicate
+  # note: the factor order is placebo, azithro
+  mutate(diff_seroprev = seroprev - lag(seroprev),
+         diff_seroprev_minus20 = seroprev_minus20 - lag(seroprev_minus20),
+         diff_seroprev_plus20 = seroprev_plus20 - lag(seroprev_plus20)) %>%
+  ungroup() %>%
+  group_by(antigenf) %>%
+  filter(!is.na(diff_seroprev)) %>%
+  mutate(diff_seroprev_lb = quantile(diff_seroprev, probs = 0.025),
+         diff_seroprev_ub = quantile(diff_seroprev, probs = 0.975),
+         diff_seroprev_minus20_lb = quantile(diff_seroprev_minus20, probs = 0.025),
+         diff_seroprev_minus20_ub = quantile(diff_seroprev_minus20, probs = 0.975),
+         diff_seroprev_plus20_lb = quantile(diff_seroprev_plus20, probs = 0.025),
+         diff_seroprev_plus20_ub = quantile(diff_seroprev_plus20, probs = 0.975)
+         ) %>%
+  select(antigenf,starts_with("diff_")) %>%
+  slice(1)
+  
+mu_serop2 <- mu_serop %>%
+  left_join(mu_serop_ci, by = "antigenf")
+  
+```
+
+
+```{r cutoff sensitivity seroprev diff figure}
+#------------------------------
+# plot the difference between
+# arms (companion to the means)
+#------------------------------
+
+# format the output for plotting
+# reshape long
+mu_serop_plot_primary <- mu_serop2 %>%
+  ungroup() %>%
+  group_by(antigenf) %>%
+  select(antigenf,diff,diff_lb=diff_seroprev_lb,diff_ub=diff_seroprev_ub) %>%
+  mutate(analysis = "Primary analysis")
+
+mu_serop_plot_minus20 <- mu_serop2 %>%
+  ungroup() %>%
+  group_by(antigenf) %>%
+  select(antigenf,diff=diff_minus20,diff_lb=diff_seroprev_minus20_lb,diff_ub=diff_seroprev_minus20_ub) %>%
+  mutate(analysis = "MFI cutoff -20%")
+
+mu_serop_plot_plus20 <- mu_serop2 %>%
+  ungroup() %>%
+  group_by(antigenf) %>%
+  select(antigenf,diff=diff_plus20,diff_lb=diff_seroprev_plus20_lb,diff_ub=diff_seroprev_plus20_ub)  %>%
+  mutate(analysis = "MFI cutoff +20%")
+
+mu_serop_plot <- mu_serop_plot_primary %>%
+  bind_rows(mu_serop_plot_minus20,mu_serop_plot_plus20) %>%
+  mutate(analysis = factor(analysis, levels = c("Primary analysis","MFI cutoff -20%","MFI cutoff +20%"))) %>%
+  arrange(antigenf,analysis)
+mu_serop_plot$pathogen_group <- NA
+mu_serop_plot$pathogen_group[grep("P. ",mu_serop_plot$antigenf)] <- "malaria"
+mu_serop_plot$pathogen_group[is.na(mu_serop_plot$pathogen_group)] <- "bacteria & protozoa"
+
+# make the figure
+pcols <- c("black",cbpal[c(2,7)])
+plot_serop_sens <- ggplot(data = mu_serop_plot, aes(x = antigenf, y = diff, color = analysis)) +
+  facet_grid(.~pathogen_group, scales = "free_x", space = "free_x") +
+  geom_hline(yintercept = 0, color = "gray60") +
+  geom_errorbar(aes(ymin = diff_lb, ymax = diff_ub),width = 0.15,alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
+  geom_point(alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
+  scale_color_manual(values = pcols) +
+  scale_y_continuous(breaks = seq(-0.2,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.2,0.1,by=0.05)*100)) +
+  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo",tag="A") +
+  coord_cartesian(ylim = c(-0.22,0.11)) +
+  # theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle=90,hjust=1)
+  )
+
+plot_serop_sens
+
+ggsave(here("figures","mordor-ab-diff-seroprev-cutoff-sens.png"),plot_serop_sens,device = "png",width = 7, height = 6)
+```
+
+
+# Force of infection by arm
+
+Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence.
+
+We use a generalized linear model with a complementary log-log link fit with current status, age-prevalence data, equivalent to a proportional hazards model. We model the baseline hazard in age using a semi-parametric, cubic spline, $g(\cdot)$, and include a binary indicator for treatment group. Let $A$ be a child's age and let $T$ be a binary indicator for azithromycin treatment. The model is:
+
+\begin{equation}
+  \log - \log(1-P(Y|A,T)) = g(A) + \beta X
+\end{equation}
+
+The hazard or force of infection at age $a$ is: $\lambda(a) = F'(a)/(1-F(a))$. From the definition of the hazard, we have: 
+
+$1- F(a) = \exp [ - \int_0^a \lambda(a) da ]$ and $\int_0^a \lambda(a) da = - \log [1-F(a)]$.
+
+This is the cumulative hazard. The average hazard per year (units of $a$) also divided $-\log[1-F(a)]$ by $a$.  So, all of the information is embedded in the cumulative distribution function, $F(a)$, which here is the age-dependent seroprevalence curve. 
+
+The average hazard over the age period $a_1$ to $a_2$ is:
+
+\begin{equation}
+  \int_{a_1}^{a_2} \lambda(a) da = \frac{\log[1-F(a_1)]-\log[1-F(a_2)]}{a_2 - a_1}
+\end{equation}
+
+The approach assumes no seroreversion over the age range $(a_1, a_2)$, which manifests as monotonically increasing seroprevalence with age. Limit the analysis of enteric pathogens to ages 6-24 months where this assumption is more tenable (_Salmonella_ serogroups B and D is an exception, where seroprevalence continues to increase through 59 months) 
+
+```{r FOI  estimates}
+#---------------------------------
+# for enterics, drop children >24 mo
+# (excluding Salmonella)
+#---------------------------------
+d_foi <- d_serop %>%
+  mutate(dropobs = ifelse(antigenf %in% c("Campylobacter p18 or p39","ETEC LTB","Cryptosporidium Cp17 or Cp23","Giardia VSP-3 or VSP-5") & (agem > 24),1,0)) %>%
+  filter(dropobs==0) %>%
+  select(-dropobs) %>%
+  mutate(antigenf = droplevels(antigenf),
+         clusteridf = factor(clusterid),
+         dummy = 1)
+
+#---------------------------------
+# estimate SCRs and HRs for each
+# pathogen
+#
+# repeat for the primary analysis,
+# and the two sensitivity analyses
+#---------------------------------
+set.seed(2342)
+foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
+  
+    pd <- filter(d_foi, antigenf==ab)
+    gfit <- gam(seropos ~ s(agem, bs="cr") + arm +
+                s(clusteridf, bs = "re",by=dummy), 
+                data=pd,
+                family=binomial(link="cloglog"))
+    gsum <- summary(gfit)
+    # estimate average seroconversion rate by arm
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "placebo", dummy=0, clusteridf = "community-1")
+    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "azithro", dummy=0, clusteridf = "community-1")
+    lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit$coefficients[2]))
+    loghr_se <-as.numeric(gsum$se[2])
+    hr_p <- as.numeric(gsum$p.pv[2])
+    # return the results
+    res <- data.frame(antigenf = ab,
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se),
+                      hr_p = hr_p
+                      )
+}
+
+foi_ests_minus20 <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
+  
+    pd <- filter(d_foi, antigenf==ab)
+    gfit <- gam(seropos_minus20 ~ s(agem, bs="cr") + arm +
+                s(clusteridf, bs = "re",by=dummy), 
+                data=pd,
+                family=binomial(link="cloglog"))
+    gsum <- summary(gfit)
+    # estimate average seroconversion rate by arm
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "placebo", dummy=0, clusteridf = "community-1")
+    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "azithro", dummy=0, clusteridf = "community-1")
+    lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit$coefficients[2]))
+    loghr_se <-as.numeric(gsum$se[2])
+    hr_p <- as.numeric(gsum$p.pv[2])
+    # return the results
+    res <- data.frame(antigenf = ab,
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se),
+                      hr_p = hr_p
+                      )
+}
+
+foi_ests_plus20 <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
+  
+    pd <- filter(d_foi, antigenf==ab)
+    gfit <- gam(seropos_plus20 ~ s(agem, bs="cr") + arm +
+                s(clusteridf, bs = "re",by=dummy), 
+                data=pd,
+                family=binomial(link="cloglog"))
+    gsum <- summary(gfit)
+    # estimate average seroconversion rate by arm
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "placebo", dummy=0, clusteridf = "community-1")
+    newd1 <- data.frame(agem=c(min(pd$agem),max(pd$agem)), arm = "azithro", dummy=0, clusteridf = "community-1")
+    lambda0 <- avgFOI(gfit, newdata=newd0, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit, newdata=newd1, a1=min(pd$agem),a2=max(pd$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit$coefficients[2]))
+    loghr_se <-as.numeric(gsum$se[2])
+    hr_p <- as.numeric(gsum$p.pv[2])
+    # return the results
+    res <- data.frame(antigenf = ab,
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se),
+                      hr_p = hr_p
+                      )
+}
+
+#---------------------------------
+# combine the three sets of estimates
+# into a single results data frame
+#---------------------------------
+foi_ests_all <- foi_ests %>%
+  mutate(analysis = "Primary analysis") %>%
+  bind_rows(foi_ests_minus20) %>%
+  mutate(analysis = ifelse(is.na(analysis),"MFI cutoff -20%",analysis)) %>%
+  bind_rows(foi_ests_plus20) %>%
+  mutate(analysis = ifelse(is.na(analysis),"MFI cutoff +20%",analysis)) %>%
+  mutate(analysis = factor(analysis, levels=c("Primary analysis","MFI cutoff -20%","MFI cutoff +20%")))
+```
+
+
+## Sensitivity analysis HR figure
+
+
+```{r sensitivity scr hazard ratio figure}
+#------------------------------
+# plot the hazard ratio between
+# arms (companion to the means)
+#------------------------------
+
+# format the output for plotting
+mu_scr_plot <- foi_ests_all %>%
+  ungroup() %>%
+  arrange(antigenf,analysis)
+mu_scr_plot$pathogen_group = "bacteria & protozoa"
+mu_scr_plot$pathogen_group[substr(as.character(mu_scr_plot$antigenf),1,3)=="P. "] <- "malaria"
+
+# make the figure
+pcols <- c("black",cbpal[c(2,7)])
+plot_hr_sens <- ggplot(data = mu_scr_plot, aes(x = antigenf, y = hr, color = analysis)) +
+  facet_grid(.~pathogen_group, scales = "free_x", space = "free_x") +
+  geom_hline(yintercept = 1, color = "gray60") +
+  geom_errorbar(aes(ymin = hr_min95, ymax = hr_max95),width = 0.15,alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
+  geom_point(alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
+  scale_color_manual(values = pcols) +
+  scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
+  labs(x = NULL, y = "hazard ratio \nazithromycin / placebo",tag="B") +
+  coord_cartesian(ylim = c(0.4,2)) +
+  # theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle=90,hjust=1)
+  )
+
+plot_hr_sens
+
+ggsave(here("figures","mordor-ab-hr-cutoff-sens.png"),plot_hr_sens,device = "png",width = 7, height = 6)
+```
+
+
+# Save estimates
+
+```{r save hr estimates}
+write_csv(mu_serop_plot,here("data","mordor-ab-cross-sectional-serop-ests-cutoff-sensitivity-analysis.csv"))
+write_csv(mu_scr_plot,here("data","mordor-ab-cross-sectional-hr-ests-cutoff-sensitivity-analysis.csv"))
+```
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+

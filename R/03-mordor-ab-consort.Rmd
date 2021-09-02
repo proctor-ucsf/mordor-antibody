@@ -276,14 +276,14 @@ dcov <- dtr %>%
             .groups = "keep") %>%
   slice(1) 
 
-# there is no treatment coverage data in community C51 in phase 6
+# there is no treatment coverage data in community-24 in phase 6
 # (consistent w/ the morbidity monitoring data)
 # remove that community from the estimates
 
 dcov_tab <- dcov %>%
   ungroup() %>%
-  # remove community C51 in phase 6
-  filter(!(clusterid=="C51" & phase==6)) %>%
+  # remove community-24 in phase 6
+  filter(!(clusterid=="community-24" & phase==6)) %>%
   group_by(arm,phase) %>%
   summarize(mean_coverage = mean(trcoverage)*100,
             sd_coverage = sd(trcoverage)*100,
