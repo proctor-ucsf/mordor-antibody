@@ -112,6 +112,37 @@ ggsave(filename = here("figures","mordor-ab-etec-v-ctb.png"),plot_etec_ctb, devi
 
 ```
 
+# Correlation between all antigens
+
+Estimate the correlation in log10 MFI values for all antigen pairs
+
+```{r pairwise correlation}
+
+# pivot the MFI values wider to estimate correlation
+d_corr <- d %>%
+  filter(!antigenf %in% c("GST negative control")) %>%
+  select(clusterid,childid,phase,antigenf,logmfi) %>%
+  pivot_wider(id_cols=c("clusterid","childid","phase"),names_from="antigenf",values_from = logmfi) %>%
+  select(clusterid,childid,phase,levels(d$antigenf)[1:20])
+
+# re-arrange the columns so they are still in order
+# d_corr[c("clusterid","childid","phase",levels(d$antigenf)[1:20])]
+
+
+d_corr_ests <- cor(d_corr[,-c(1:3)])
+
+library(ggcorrplot)
+antigen_cor_plot <- ggcorrplot(d_corr_ests, 
+                               # method = "circle",
+                               type = "lower",
+                               lab = TRUE,
+                               lab_size = 3,
+                               insig = "blank",
+                               colors = c("#6D9EC1", "white", "#E46726"))
+
+ggsave(filename = here("figures","mordor-ab-ab-correlation-matrix.png"),antigen_cor_plot, device = "png",width=9, height = 9)
+
+```
 
 # Session Info
 ```{r session info}
