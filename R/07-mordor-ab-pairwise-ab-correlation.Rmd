@@ -1,6 +1,6 @@
 ---
 title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
-subtitle: "Assess correlation between ETEC LTB and cholera CTB"
+subtitle: "Assess pairwise correlation between antibody responses"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
@@ -23,9 +23,11 @@ Arnold BF, et al. Enteropathogen antibody dynamics and force of infection among 
 
 Smith NW, Sack RB. 1973. Immunologic cross-reactions of enterotoxins from Escherichia coli and Vibrio cholerae. _Journal of Infectious Diseases_ 127:164–170. DOI: https://doi.org/10.1093/infdis/127.2.164, PMID: 4570128
 
+Additionally, provide a summary of pairwise correlation across all antibody responses included in the multiplex.
+
 # Preamble
 
-```{r preamble}
+```{r preamble, message=FALSE}
 library(here)
 here()
 #----------------------------
@@ -83,7 +85,7 @@ dmfi <- d1 %>%
 
 # Correlation between ETEC LTB and cholera CTB
 
-```{r ETEC v CTB figure}
+```{r ETEC v CTB figure, message=FALSE}
 
 # estimate Spearman rank correlation for printing
 sp_corr <- cor(dmfi$etec,dmfi$ctb, method = "spearman")
@@ -116,7 +118,7 @@ ggsave(filename = here("figures","mordor-ab-etec-v-ctb.png"),plot_etec_ctb, devi
 
 Estimate the correlation in log10 MFI values for all antigen pairs
 
-```{r pairwise correlation}
+```{r pairwise correlation plot, fig.width = 8}
 
 # pivot the MFI values wider to estimate correlation
 d_corr <- d %>%
@@ -139,6 +141,8 @@ antigen_cor_plot <- ggcorrplot(d_corr_ests,
                                lab_size = 3,
                                insig = "blank",
                                colors = c("#6D9EC1", "white", "#E46726"))
+
+antigen_cor_plot
 
 ggsave(filename = here("figures","mordor-ab-ab-correlation-matrix.png"),antigen_cor_plot, device = "png",width=9, height = 9)
 
