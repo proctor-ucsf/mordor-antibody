@@ -1,0 +1,440 @@
+---
+title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+subtitle: "Leave-one-out jackknife sensitivity analysis"
+author: "Ben Arnold ben.arnold@ucsf.edu"
+date: "updated: `r Sys.time()`"
+output: 
+  html_document:
+    theme: default
+    highlight: haddock
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+---
+
+# Summary
+
+Repeat the primary analysis that compares azithromycin and placebo groups by seropositivity and seroconversion rates, systematically excluding one community in turn and re-estimating the effect. Use the mean over replicates for a jackknife estimate of the bias.
+
+# Preamble
+
+```{r preamble, message=FALSE}
+library(here)
+here()
+#----------------------------
+# source the config file
+#----------------------------
+source(here("R","mordor-ab-Config.R"))
+
+#----------------------------
+# source the functions file
+# includes reused functions
+#----------------------------
+source(here("R","mordor-ab-Functions.R"))
+```
+
+
+
+
+# Load the antibody data
+
+```{r load antibody data}
+#-------------------------------
+# load the formatted analysis
+# data created by
+# mordor-ab-format-data.Rmd
+#-------------------------------
+d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
+
+#-------------------------------
+# drop "_public" suffix from IDs
+#-------------------------------
+d <- d %>%
+  rename(clusterid = clusterid_public, childid = childid_public)
+
+#-------------------------------
+# drop tGST negative control values
+#-------------------------------
+d1 <- d %>%
+  filter(!antigen %in% c("gst")) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# drop cholera CTB because so 
+# highly cross-reactive with ETEC LTB
+#-------------------------------
+d1 <- d1 %>%
+  filter( !antigen %in% c("ctb") ) %>%
+  mutate(antigenf = factor(antigenf))
+
+#-------------------------------
+# drop baseline measurements
+#-------------------------------
+d2 <- d1 %>%
+  filter(phase > 0)
+
+#-------------------------------
+# age restrictions based on 
+# age-antibody curves
+# to exclude ages with evidence
+# for maternal IgG contributions
+#
+# Bacteria and protozoa: 6 mo - 59 mo
+#
+# ETEC LTB: 6 mo - 24 mo (no heterogeneity at older ages)
+#
+# Malaria antigens: 12 - 59 mo
+#-------------------------------
+d2 <- d2 %>%
+  filter(agem >= 6) %>%
+  mutate(agedrop = case_when(
+    antigen %in% c("etec") & (agem > 24) ~ 1,
+    antigen %in% c("hrp2","csp","glurp","lsa1","ama","pfmsp1","pvmsp1","pomsp1","pmmsp1") & (agem < 12) ~ 1,
+    TRUE ~ 0
+  )
+         ) %>%
+  filter(agedrop == 0)
+
+```
+
+# Create composite seropositivity indicators
+
+For enteric pathogens with multiple antigens (Cryptosporidium, Giardia, Salmonella, Campylobacter), create a series of seropositivity indicators that indicate if a child was positive to either antigen.
+
+Then bind those to the original data frame to create a seropositivity dataset for analyses.
+
+```{r composite seropositivity indicators}
+d_enteric_comps <- d2 %>%
+  filter(pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  group_by(pathogen,childid,phase) %>%
+  mutate(seropos = max(seropos)) %>%
+  slice(1) %>%
+  mutate(antigenf = case_when(
+    antigen %in% c("cp17","cp23") ~ "Cryptosporidium Cp17 or Cp23",
+    antigen %in% c("vsp3","vsp5") ~ "Giardia VSP-3 or VSP-5",
+    antigen %in% c("salb","sald") ~ "Salmonella groups B or D LPS",
+    antigen %in% c("p18","p39") ~ "Campylobacter p18 or p39"
+  )) %>%
+  select(clusterid,phase,arm,childid,agem,sex,dbsid,pathogen,antigenf,seropos)
+
+
+```
+
+```{r create seropositivity dataset, warning=FALSE}
+d_serop <- d2 %>%
+  # drop pathogens w/ composite indicators
+  filter(!pathogen %in% c("Cryptosporidium","Giardia","Salmonella","Campylobacter")) %>%
+  # add composite indicators
+  bind_rows(d_enteric_comps) %>%
+  # create new factor levels that includes composite indicators
+  mutate(antigenf = factor(antigenf,levels = c(
+    "Campylobacter p18 or p39",
+    "ETEC LTB",
+    "Salmonella groups B or D LPS",
+    "Cryptosporidium Cp17 or Cp23",
+    "Giardia VSP-3 or VSP-5",
+   levels(d2$antigenf)[10:19]) )
+         ) %>%
+  # drop extra variables (MFI doesn't correspond to composite seropos so drop)
+  dplyr::select(-mfi,-logmfi,-agedrop)
+
+```
+
+
+
+
+# Seroprevalence
+
+Estimate means by arm in the full sample, then re-estimate means with leave-one-out at the community level (30 replicates)
+
+```{r seroprev by arm}
+
+#-----------------------------
+# tally number of observations
+# by antigen (including composites)
+#-----------------------------
+n_serop <- d_serop %>%
+  group_by(pathogen,antigenf,arm) %>%
+  mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
+  summarize(nobs = sum(nomiss), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = nobs) %>%
+  rename(placebo_n = placebo,
+         azithro_n = azithro)
+
+#-----------------------------
+# estimate seroprevalence by arm
+# and difference in seroprevalence
+#-----------------------------
+mu_serop <- d_serop %>%
+  group_by(pathogen,antigenf,arm) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_serop) %>%
+  mutate(diff = azithro - placebo)
+
+#-----------------------------
+# merge means onto the Ns
+#-----------------------------
+mu_serop <- left_join(n_serop, mu_serop, by=c("pathogen","antigenf"))
+```
+
+```{r bootstrap mean seropos diff}
+#-----------------------------
+# bootstrap resample communities
+# with replacement to estimate
+# 95% CIs for difference in seroprev
+#-----------------------------
+nreps <- 1000
+ncl <- length(unique(d_serop$clusterid))
+bsamp <- matrix(sample(unique(d_serop$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
+d_serop_boot <- d_serop %>% ungroup %>% select(clusterid,antigenf,arm,seropos)
+mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %dopar% {
+  set.seed(bi)
+  di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
+                  d_serop_boot, by = "clusterid")
+  di %>%
+  group_by(antigenf,arm) %>%
+  summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+  pivot_wider(id_cols = "antigenf", names_from = "arm", values_from = mean_serop) %>%
+  mutate(diff = azithro - placebo, 
+         bootrep = bi)
+
+}
+```
+
+```{r mean seroprev bootstrap cis}
+#-----------------------------
+# calculate percentile 95%
+# CIs from the bootstrap
+# distribution merge to estimates
+#-----------------------------
+mu_serop_ci <- mu_serop_boot %>%
+  group_by(antigenf) %>%
+  mutate(mean_p_lb = quantile(placebo, probs = 0.025),
+         mean_p_ub = quantile(placebo, probs = 0.975),
+         mean_a_lb = quantile(azithro, probs = 0.025),
+         mean_a_ub = quantile(azithro, probs = 0.975),
+         diff_bmean = mean(diff),
+         diff_bse = sd(diff),
+         diff_lb = quantile(diff, probs = 0.025),
+         diff_ub = quantile(diff, probs = 0.975)) %>%
+  select(antigenf,starts_with("mean_"), starts_with("diff_")) %>%
+  slice(1)
+  
+mu_serop2 <- mu_serop %>%
+  left_join(mu_serop_ci, by = "antigenf")
+  
+```
+
+
+```{r loo seroprevalence}
+#-----------------------------
+# loop over the 30 communities
+# and re-estimate difference
+# in seroprevalence
+#-----------------------------
+loo_serop <- foreach(comi = unique(d_serop$clusterid), .combine = rbind) %do% {
+  
+  # estimate seroprevalence by arm
+  # and difference in seroprevalence
+  mui <- d_serop %>% 
+    filter(clusterid != comi) %>%
+    group_by(pathogen,antigenf,arm) %>%
+    summarize(mean_serop = mean(seropos), .groups = "keep") %>%
+    pivot_wider(id_cols = c(pathogen, antigenf), names_from = "arm", values_from = mean_serop) %>%
+    mutate(diff = azithro - placebo,
+           loo = comi)
+}
+
+#-----------------------------
+# calculate the mean over
+# replicates
+#-----------------------------
+loo_mu <- loo_serop %>%
+  group_by(pathogen, antigenf) %>%
+  summarize(azithro = mean(azithro),
+            placebo = mean(placebo),
+            diff = mean(diff),
+            .groups = "keep")
+loo_mu$group = "bacteria & protozoa"
+loo_mu$group[grep("P. ",loo_mu$pathogen)] <- "malaria"
+
+#-----------------------------
+# jackknife estimation of the
+# bias: (n-1)(theta_loo - theta)
+# https://en.wikipedia.org/wiki/Jackknife_resampling
+#-----------------------------
+loo_mu2 <- loo_mu %>%
+  rename(diff_loo = diff ) %>%
+  left_join(mu_serop2 %>% select(pathogen, antigenf, diff, diff_lb, diff_ub), by = c("pathogen","antigenf")) %>%
+  mutate(jkn_bias = 29*(diff_loo - diff)*100,
+         jkn_bias_lab = sprintf("%1.2f",jkn_bias))
+
+
+```
+
+```{r seroprev loo summary, warning=FALSE}
+loo_serop_sum <- loo_serop
+loo_serop_sum$group = "bacteria & protozoa"
+loo_serop_sum$group[grep("P. ",loo_serop_sum$pathogen)] <- "malaria"
+
+loo_serop_plot <- ggplot(data = loo_serop_sum, aes(x = antigenf, y = diff)) +
+  facet_grid(.~group, scales = "free_x", space = "free_x") +
+  geom_hline(yintercept = 0, color = "gray60") +
+  geom_jitter(width = 0.25, alpha = 0.4, color = cbpal[7]) +
+  geom_point(data=loo_mu2, aes(x = antigenf, y = diff_loo), pch = 1, size = 3,color = "black") +
+  geom_point(data=loo_mu2, aes(x = antigenf, y = diff),pch=3, size=5) +
+  geom_errorbar(data=loo_mu2, aes(x = antigenf, ymin = diff_lb, ymax = diff_ub),width = 0) +
+  geom_text(data=loo_mu2, aes(x = antigenf, y = -0.24, label = jkn_bias_lab),pch=1, size=3) +
+  scale_y_continuous(breaks = seq(-0.25,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.25,0.1,by=0.05)*100)) +
+  coord_cartesian(ylim=c(-0.25,0.11)) +
+  labs(x = "",y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "a") +
+  theme(
+    axis.text.x = element_text(angle=90,hjust=1),
+    plot.tag = element_text(face = "bold")
+  )
+
+loo_serop_plot
+
+ggsave(here("figures","mordor-ab-diff-seroprev-loo-sens.png"),loo_serop_plot,device = "png",width = 7, height = 6)
+
+```
+Leave-one-out sensitivity analyses that excluded each of the 30 study communities and re-estimated the difference in seroprevalence between groups and the relative hazard of seroconversion. Light points mark the 30 leave-one-out replicates, black circles mark the mean over leave-one-out replicates. Horizontal lines mark the mean in the full sample and vertical lines the 95% confidence interval. Jackknife estimates of the bias are printed at the bottom of each panel, above the pathogen/antigen labels. (**a**) Difference in seroprevalence between groups. Jackknife estimates of the bias are on the percentage point scale, all <0.03%. 
+
+# Force of infection by arm
+
+Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence as in the primary anlaysis.
+
+
+```{r full sample HR estimates}
+#---------------------------------
+# for enterics, drop children >24 mo
+# (excluding Salmonella)
+#---------------------------------
+d_foi <- d_serop %>%
+  mutate(dropobs = ifelse(antigenf %in% c("Campylobacter p18 or p39","ETEC LTB","Cryptosporidium Cp17 or Cp23","Giardia VSP-3 or VSP-5") & (agem > 24),1,0)) %>%
+  filter(dropobs==0) %>%
+  select(-dropobs) %>%
+  mutate(antigenf = droplevels(antigenf),
+         clusteridf = factor(clusterid),
+         dummy = 1)
+
+foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
+  
+    pd <- filter(d_foi, antigenf==ab)
+    gfit <- gam(seropos ~ s(agem, bs="cr") + arm +
+                s(clusteridf, bs = "re",by=dummy), 
+                data=pd,
+                family=binomial(link="cloglog"))
+    gsum <- summary(gfit)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit$coefficients[2]))
+    loghr_se <-as.numeric(gsum$se[2])
+    hr_p <- as.numeric(gsum$p.pv[2])
+    # return the results
+    res <- data.frame(antigenf = ab,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se),
+                      hr_p = hr_p
+                      )
+}
+```
+
+```{r loo HR estimates}
+#-----------------------------
+# for each antigen:
+# loop over the 30 communities
+# and re-estimate HR
+# from age-structured seroprev
+#-----------------------------
+loo_loghr <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %:%
+  foreach(comi = unique(d_serop$clusterid), .combine = rbind) %do% {
+    
+    # exclude the loo cluster
+    di <- d_foi %>% filter(clusterid != comi & antigenf == ab)
+    
+    # estimate log HR from the model 
+    gfit <- gam(seropos ~ s(agem, bs="cr") + arm +
+                s(clusteridf, bs = "re",by=dummy), 
+                data=di,
+                family=binomial(link="cloglog"))
+
+    # return the results
+    res <- data.frame(loo = comi,
+                      antigenf = ab,
+                      loghr = as.numeric(gfit$coefficients[2])
+                      )
+   res
+}
+
+#-----------------------------
+# calculate the mean log(HR)
+# over replicates
+#-----------------------------
+loo_loghr_mu <- loo_loghr %>%
+  group_by(antigenf) %>%
+  summarize(loghr = mean(loghr),.groups = "keep") %>%
+  mutate(antigenf = factor(antigenf, levels = levels(d_foi$antigenf))) %>%
+  arrange(antigenf)
+loo_loghr_mu$group = "bacteria & protozoa"
+loo_loghr_mu$group[grep("P. ",loo_loghr_mu$antigenf)] <- "malaria"
+
+#-----------------------------
+# jackknife estimation of the
+# bias: (n-1)(theta_loo - theta)
+# https://en.wikipedia.org/wiki/Jackknife_resampling
+#-----------------------------
+loo_loghr_mu2 <- loo_loghr_mu %>%
+  rename(loghr_loo = loghr ) %>%
+  left_join(foi_ests %>% select(antigenf, hr, hr_min95, hr_max95), by = c("antigenf")) %>%
+  mutate(hr_loo = exp(loghr_loo),
+         jkn_bias = 29*(loghr_loo - log(hr)),
+         jkn_bias_lab = sprintf("%1.2f",jkn_bias))
+
+
+```
+
+
+```{r HR loo summary, warning = FALSE}
+loo_loghr_sum <- loo_loghr %>%
+  mutate(hr = exp(loghr)) %>%
+  mutate(antigenf = factor(antigenf, levels = levels(d_foi$antigenf)))
+loo_loghr_sum$group = "bacteria & protozoa"
+loo_loghr_sum$group[grep("P. ",loo_loghr_sum$antigenf)] <- "malaria"
+  
+
+loo_hr_plot <- ggplot(data = loo_loghr_sum , aes(x = antigenf, y = hr)) +
+  facet_grid(.~group, scales = "free_x", space = "free_x") +
+  geom_hline(yintercept = 1, color = "gray60") +
+  geom_jitter(width = 0.25, alpha = 0.4, color = cbpal[7]) +
+  geom_point(data=loo_loghr_mu2, pch = 3, size = 5,color = "black") +
+  geom_point(data=loo_loghr_mu2, aes(x = antigenf, y = hr_loo),pch=1, size=3) +
+  geom_errorbar(data=loo_loghr_mu2, aes(x = antigenf, ymin = hr_min95, ymax = hr_max95),width = 0) +
+  geom_text(data=loo_loghr_mu2, aes(x = antigenf, y = 0.35, label = jkn_bias_lab),pch=1, size=3) +
+  scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
+  coord_cartesian(ylim=c(0.3,2)) +
+  labs(x = "",y = "hazard ratio of seroconversion\nazithromycin / placebo", tag = "b") +
+  theme(
+    axis.text.x = element_text(angle=90,hjust=1),
+    plot.tag = element_text(face = "bold")
+  )
+
+loo_hr_plot
+
+ggsave(here("figures","mordor-ab-hr-loo-sens.png"),loo_hr_plot,device = "png",width = 7, height = 6)
+
+```
+
+Leave-one-out sensitivity analyses that excluded each of the 30 study communities and re-estimated the difference in seroprevalence between groups and the relative hazard of seroconversion. Light points mark the 30 leave-one-out replicates, black circles mark the mean over leave-one-out replicates. Horizontal lines mark the mean in the full sample and vertical lines the 95% confidence interval. Jackknife estimates of the bias are printed at the bottom of each panel, above the pathogen/antigen labels.(**b**) Hazard ratio of seroconversion estimated from age-structured seroprevalence. Jackknife estimates of the bias are on the log(hazard ratio) scale. 
+
+
+# Session Info
+```{r session info}
+sessionInfo()
+```
+
+
