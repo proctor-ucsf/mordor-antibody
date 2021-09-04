@@ -21,7 +21,7 @@ Summarize age-dependent mean antibody levels and distributions.
 
 # Preamble
 
-```{r preamble}
+```{r preamble, message = FALSE}
 library(here)
 here()
 #----------------------------
@@ -140,9 +140,10 @@ plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit))
   scale_y_continuous(breaks = 0:4, labels = log10labs) +
   scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=6)) +
   coord_cartesian(ylim = c(0,4.5)) +
-  labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "A") +
+  labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "a") +
   theme(
-    strip.text.y = element_text(angle = 0)
+    strip.text.y = element_text(angle = 0),
+    plot.tag = element_text(face = "bold")
   )
 
 
@@ -161,11 +162,12 @@ plot_dist_under6mo <- ggplot(data = fit_age_enterics %>% filter(agem<6), aes(x =
   geom_vline(data = dcuts, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
   scale_x_continuous(breaks = 0:4, labels = log10labs) +
   scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 0-6 mo", tag = "B") +
+  labs(x = NULL, y = "N observations", title = "Ages 0-6 mo", tag = "b") +
   coord_flip(ylim = c(0,400), xlim = c(0,4.5))+
   theme(
     legend.position = "none", 
-    strip.text.y = element_blank()
+    strip.text.y = element_blank(),
+    plot.tag = element_text(face = "bold")
   )
 
 ```
@@ -182,11 +184,12 @@ plot_dist_6to24 <- ggplot(data = fit_age_enterics %>% filter(agem>=6 & agem<=24)
   geom_vline(data = dcuts, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
   scale_x_continuous(breaks = 0:4, labels = log10labs) +
   scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 6-24 mo", tag = "C") +
+  labs(x = NULL, y = "N observations", title = "Ages 6-24 mo", tag = "c") +
   coord_flip(ylim = c(0,700), xlim = c(0,4.5))+
   theme(
     legend.position = "none", 
-    strip.text.y = element_blank()
+    strip.text.y = element_blank(),
+    plot.tag = element_text(face = "bold")
   )
 
 ```
@@ -204,11 +207,12 @@ plot_dist_24to59 <- ggplot(data = fit_age_enterics %>% filter(agem>24), aes(x = 
   geom_vline(data = dcuts, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
   scale_x_continuous(breaks = 0:4, labels = log10labs) +
   scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 24-59 mo", tag = "D") +
+  labs(x = NULL, y = "N observations", title = "Ages 24-59 mo", tag = "d") +
   coord_flip(ylim = c(0,700), xlim = c(0,4.5))+
   theme(
     legend.position = "none", 
-    strip.text.y = element_blank()
+    strip.text.y = element_blank(),
+    plot.tag = element_text(face = "bold")
   )
 
 ```
@@ -270,9 +274,10 @@ plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit)) +
   scale_y_continuous(breaks = 0:4, labels = log10labs) +
   scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=6)) +
   coord_cartesian(ylim = c(0,4.5)) +
-  labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "A") +
+  labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "a") +
   theme(
-    strip.text.y = element_text(angle = 0)
+    strip.text.y = element_text(angle = 0),
+    plot.tag = element_text(face = "bold")
   )
 
 
@@ -291,11 +296,12 @@ plot_dist_malaria_under12mo <- ggplot(data = fit_age_malaria %>% filter(agem<12)
   geom_vline(data = dcuts_malaria, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
   scale_x_continuous(breaks = 0:4, labels = log10labs) +
   scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 0-12 mo", tag = "B") +
+  labs(x = NULL, y = "N observations", title = "Ages 0-12 mo", tag = "b") +
   coord_flip(ylim = c(0,500), xlim = c(0,4.5))+
   theme(
     legend.position = "none", 
-    strip.text.y = element_blank()
+    strip.text.y = element_blank(),
+    plot.tag = element_text(face = "bold")
   )
 
 ```
@@ -313,11 +319,12 @@ plot_dist_malaria_12to59 <- ggplot(data = fit_age_malaria %>% filter(agem>=12), 
   geom_vline(data = dcuts_malaria, aes(xintercept = serocut),lwd = 0.25,col = "gray20") +
   scale_x_continuous(breaks = 0:4, labels = log10labs) +
   scale_y_continuous(expand = c(0,0), breaks = seq(0,700,by=100))+
-  labs(x = NULL, y = "N observations", title = "Ages 12-59 mo", tag = "C") +
+  labs(x = NULL, y = "N observations", title = "Ages 12-59 mo", tag = "c") +
   coord_flip(ylim = c(0,700), xlim = c(0,4.5))+
   theme(
     legend.position = "none", 
-    strip.text.y = element_blank()
+    strip.text.y = element_blank(),
+    plot.tag = element_text(face = "bold")
   )
 
 ```

@@ -21,7 +21,7 @@ Repeat the primary analysis that compares azithromycin and placebo groups by ser
 
 # Preamble
 
-```{r preamble}
+```{r preamble, message = FALSE}
 library(here)
 here()
 #----------------------------
@@ -352,12 +352,13 @@ plot_serop_sens <- ggplot(data = mu_serop_plot, aes(x = antigenf, y = diff, colo
   geom_point(alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = seq(-0.2,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.2,0.1,by=0.05)*100)) +
-  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo",tag="A") +
+  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo",tag="a") +
   coord_cartesian(ylim = c(-0.22,0.11)) +
   # theme_minimal() +
   theme(
     legend.position = "top",
-    axis.text.x = element_text(angle=90,hjust=1)
+    axis.text.x = element_text(angle=90,hjust=1),
+    plot.tag = element_text(face = "bold")
   )
 
 plot_serop_sens
@@ -368,27 +369,7 @@ ggsave(here("figures","mordor-ab-diff-seroprev-cutoff-sens.png"),plot_serop_sens
 
 # Force of infection by arm
 
-Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence.
-
-We use a generalized linear model with a complementary log-log link fit with current status, age-prevalence data, equivalent to a proportional hazards model. We model the baseline hazard in age using a semi-parametric, cubic spline, $g(\cdot)$, and include a binary indicator for treatment group. Let $A$ be a child's age and let $T$ be a binary indicator for azithromycin treatment. The model is:
-
-\begin{equation}
-  \log - \log(1-P(Y|A,T)) = g(A) + \beta X
-\end{equation}
-
-The hazard or force of infection at age $a$ is: $\lambda(a) = F'(a)/(1-F(a))$. From the definition of the hazard, we have: 
-
-$1- F(a) = \exp [ - \int_0^a \lambda(a) da ]$ and $\int_0^a \lambda(a) da = - \log [1-F(a)]$.
-
-This is the cumulative hazard. The average hazard per year (units of $a$) also divided $-\log[1-F(a)]$ by $a$.  So, all of the information is embedded in the cumulative distribution function, $F(a)$, which here is the age-dependent seroprevalence curve. 
-
-The average hazard over the age period $a_1$ to $a_2$ is:
-
-\begin{equation}
-  \int_{a_1}^{a_2} \lambda(a) da = \frac{\log[1-F(a_1)]-\log[1-F(a_2)]}{a_2 - a_1}
-\end{equation}
-
-The approach assumes no seroreversion over the age range $(a_1, a_2)$, which manifests as monotonically increasing seroprevalence with age. Limit the analysis of enteric pathogens to ages 6-24 months where this assumption is more tenable (_Salmonella_ serogroups B and D is an exception, where seroprevalence continues to increase through 59 months) 
+Estimate serological force of infection through the seroconverion rate. Estimate the seroconversion rate from age-structured seroprevalence as in the primary anlaysis.
 
 ```{r FOI  estimates}
 #---------------------------------
@@ -558,12 +539,13 @@ plot_hr_sens <- ggplot(data = mu_scr_plot, aes(x = antigenf, y = hr, color = ana
   geom_point(alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
-  labs(x = NULL, y = "hazard ratio \nazithromycin / placebo",tag="B") +
+  labs(x = NULL, y = "hazard ratio \nazithromycin / placebo",tag="b") +
   coord_cartesian(ylim = c(0.4,2)) +
   # theme_minimal() +
   theme(
     legend.position = "top",
-    axis.text.x = element_text(angle=90,hjust=1)
+    axis.text.x = element_text(angle=90,hjust=1),
+    plot.tag = element_text(face = "bold")
   )
 
 plot_hr_sens
