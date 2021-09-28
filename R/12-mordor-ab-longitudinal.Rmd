@@ -189,6 +189,30 @@ sum(table(dl$nobs[dl$antigen=="salb"])/2:5)
 table(dl$nobs[dl$antigen=="ama"])/2:5
 sum(table(dl$nobs[dl$antigen=="ama"])/2:5)
 
+#-------------------------------
+# summarize the median and
+# range of measurements per child
+# in the three longitudinal analysis
+# sets
+#-------------------------------
+dl_enterics <- dl %>%
+  filter(antigen=="etec") %>%
+  group_by(childid) %>%
+  slice(1) 
+summary(dl_enterics$nobs)
+dl_sal <- dl %>%
+  filter(antigen=="salb") %>%
+  group_by(childid) %>%
+  slice(1) 
+summary(dl_sal$nobs)
+dl_mal <- dl %>%
+  filter(antigen=="ama") %>%
+  group_by(childid) %>%
+  slice(1) 
+summary(dl_mal$nobs)
+
+  
+
 ```
 
 # Create composite seropositivity indicators
