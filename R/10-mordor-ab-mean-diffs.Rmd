@@ -925,7 +925,7 @@ foi_ests_tab <- foi_ests %>%
          ) %>%
   mutate(bh_p = c(bh_p_enterics, bh_p_malaria))
 
-knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %>% slice(1:7),digits=3,
+knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %>% slice(1:6),digits=3,
              caption="Average seroconversion rate (SCR) per year estimated from age-structured seroprevalence",
              align = "lcccc",
              col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)","P-value*","P-value†"),
@@ -1036,7 +1036,7 @@ ggsave(here("figures","mordor-ab-scr-hr-bacteria-protozoa.png"),plot_scr_comp,de
 
 ## Malaria FOI table
 ```{r foi table of results malaria}
-knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %>% slice(8:16),digits=3,
+knitr::kable(foi_ests_tab %>% select(antigenf,lambda0c,lambda1c,hrc,hr_p,bh_p) %>% slice(7:15),digits=3,
              caption="Average seroconversion rate (SCR) per year estimated from age-structured seroprevalence",
              align = "lcccc",
              col.names = c("Antigens","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)","P-value*","P-value†"),
