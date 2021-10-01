@@ -145,7 +145,7 @@ d_serop <- d2 %>%
 
 #-----------------------------
 # count N and estimate 
-# seroprevalence by community
+# mean log10 MFI by community
 # averaged over all post-tr
 # phases
 #-----------------------------
@@ -610,6 +610,84 @@ p_comm
 ggsave(filename = here("figures","mordor-ab-community-seroprev-malaria.png"),p_comm, device = "png", width=5.5,height=6)
 
 ```
+# Community mean and ICC summary
+
+## Estimate community level ICCs
+
+Estimate the intra-cluster correlation (ICC) for seroprevalence measures.
+
+```{r estimate iccs, warning=FALSE, message=FALSE}
+
+d_serop <- d_serop %>% 
+  mutate(clusteridf = factor(clusterid))
+
+set.seed(1231)
+icc_ests <- foreach(abi = levels(d_serop$antigenf), .combine = rbind) %do% {
+  di <- d_serop %>% filter(antigenf==abi)
+  fiti <- rptBinary(seropos ~ 1 + (1|clusteridf), grname = "clusteridf", data=di, nboot = 1000, parallel = TRUE)
+  icci <- fiti$R[1,1]
+  icci_lb <- fiti$CI_emp[[1]][1]
+  icci_ub <- fiti$CI_emp[[1]][2]
+  res <- data.frame(antigenf=abi, icc=icci, icc_lb = icci_lb, icc_ub = icci_ub)
+  return(res)
+}
+  
+
+
+
+```
+
+## Estimate means and SDs
+
+Estimate the between-community SD in seroprevalence. Summarize mean seroprevalence and the SD of the community-level means. 
+
+```{r community mean sd}
+c_serop <- mu_serop %>%
+  ungroup() %>%
+  group_by(antigenf) %>%
+  summarize(nobs=sum(nobs),
+            npos=sum(npos),
+            musd = sd(seroprev)) %>%
+  mutate(mu = npos/nobs)
+
+```
+
+
+## Community mean, SD, ICC Table
+
+Create a summary table of mean (SD) for community-level seroprevalence, along with ICC and the 95% CI for the ICC.
+
+```{r icc table}
+
+c_serop2 <- c_serop %>%
+  left_join(icc_ests, by="antigenf") %>%
+  rename(icc_lb = "X2.5.", icc_ub = "X97.5.") %>%
+  mutate(muprint = paste0(sprintf("%1.2f",mu)," (",sprintf("%1.3f",musd),")"),
+         iccprint = paste0(sprintf("%1.2f",icc)," (",sprintf("%1.2f",icc_lb),", ",sprintf("%1.2f",icc_ub),")")
+  )
+
+# stack to put malaria antigens on top
+c_serop3 <- bind_rows(c_serop2[7:15,],c_serop2[1:6,]) %>%
+  mutate(m=30) %>%
+  select(antigenf,m,nobs,muprint,iccprint)
+
+
+knitr::kable(c_serop3, 
+             row.names = FALSE,
+             col.names = c("Antibody","m","n","Seroprevalence (SD)", "ICC (95% CI)*"),
+             digits = c(0,0,0,0),
+             format.args = list(big.mark = ','),
+             align = c("l","c","c","c","c"),
+             caption = "Community mean and standard deviation (SD) seroprevalence for n children measured in m communities, along with community-level ICC") %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows(group_label = "Malaria †",start_row = 1, end_row = 9) %>%
+  pack_rows(group_label = "Bacteria and protozoa ‡", start_row = 10, end_row = 15) %>%
+  footnote(symbol = c("Intra-cluster correlation coefficient (ICC). Its 95% confidence interval (CI) was estimated with a parametric bootstrap and 1000 iterations.",
+                      "Malaria antibody seroprevalence estimated among children ages 12-59 months, per the age group used in the primary analysis.",
+                      "Bacteria and protozoan antibody seroprevalence estimated among children ages 6-24 months (ETEC LTB) or among children ages 6-59 months (all others), per the age groups used in the primary analysis"))
+
+```
+
 
 # Session Info
 ```{r session info}

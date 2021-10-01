@@ -28,6 +28,7 @@ library(RColorBrewer)
 library(mixtools)
 library(mgcv)
 library(coin)
+library(rptR)
 
 #----------------------------
 # set up for parallel computing
