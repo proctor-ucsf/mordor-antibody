@@ -1,6 +1,6 @@
 ---
 title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
-subtitle: "P. falciparum: compare community infection and seroprevalence, and stratified analysis by baseline prevalence."
+subtitle: "Compare community malaria parasitemia and P. falciparum seroprevalence, and stratified analysis by baseline parasitemia"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
 output: 
@@ -17,7 +17,7 @@ output:
 
 # Summary
 
-Examine the association between community level seroprevalence and malaria parasitemia (by thick smear microscopy), a pathogen with independent measures. Estimate separate associations for antigens that elicit a longer- and shorter-duration IgG response. 
+Examine the association between community level seroprevalence and malaria parasitemia (by thick smear microscopy), a pathogen with independent measures. Estimate separate associations for antigens that elicit a longer- and shorter-duration IgG response. There is modest correlation between measures with some evidence for saturation at high levels of seroprevalence with increases in malaria parasitemia.
 
 Finally, estimate the effects of intervention stratified by communities with baseline malaria parasitemia (by thick smear) <=5% versus communities with higher prevalence.  This analysis was not pre-specified. It was suggested during peer review as a way to interrogate the supposition that IgG might be a more appropriate outcome measure in lower transmission settings compared to settings with extremely high transmission, where it becomes saturated.  There is modest support for this hypothesis based on this exploratory analysis, below.
 
@@ -85,7 +85,7 @@ d3 <- d2 %>%
   arrange(clusterid,childid,phase) %>%
   slice(1) %>%
   mutate(antigenf = "P. falciparum (MSP-1, AMA1, GLRUP-Ro, LSA1, CSP, HRP2)") %>%
-  select(clusterid,phase,arm,childid,agem,sex,pf_thicksmear,dbsid,pathogen,antigenf,seropos)
+  select(clusterid,phase,arm,childid,agem,sex,malaria_thicksmear,dbsid,pathogen,antigenf,seropos)
 
 #-------------------------------
 # create a composite seropositivity
@@ -99,7 +99,7 @@ d3long <- d2 %>%
   arrange(clusterid,childid,phase) %>%
   slice(1) %>%
   mutate(antigenf = "P. falciparum (MSP-1, AMA1)") %>%
-  select(clusterid,phase,arm,childid,agem,sex,pf_thicksmear,dbsid,pathogen,antigenf,seropos)
+  select(clusterid,phase,arm,childid,agem,sex,malaria_thicksmear,dbsid,pathogen,antigenf,seropos)
 
 #-------------------------------
 # create a composite seropositivity
@@ -113,7 +113,7 @@ d3short <- d2 %>%
   arrange(clusterid,childid,phase) %>%
   slice(1) %>%
   mutate(antigenf = "P. falciparum (GLRUP-Ro, LSA1, CSP, HRP2)") %>%
-  select(clusterid,phase,arm,childid,agem,sex,pf_thicksmear,dbsid,pathogen,antigenf,seropos)
+  select(clusterid,phase,arm,childid,agem,sex,malaria_thicksmear,dbsid,pathogen,antigenf,seropos)
 
 
 ```
@@ -135,13 +135,13 @@ mu_p <- d3 %>%
   group_by(pathogen,antigenf,clusterid,arm) %>%
   filter(agem>=12) %>%
   mutate(nomiss_ab = ifelse(!is.na(seropos),1,0),
-         nomiss_ts = ifelse(!is.na(pf_thicksmear),1,0)) %>%
+         nomiss_ts = ifelse(!is.na(malaria_thicksmear),1,0)) %>%
   summarize(nobs_ab = sum(nomiss_ab), 
             npos_ab = sum(seropos, na.rm=TRUE),
             nobs_ts = sum(nomiss_ts), 
-            npos_ts = sum(pf_thicksmear, na.rm=TRUE),
+            npos_ts = sum(malaria_thicksmear, na.rm=TRUE),
             seroprev = mean(seropos),
-            pfprev = mean(pf_thicksmear, na.rm=TRUE),
+            pfprev = mean(malaria_thicksmear, na.rm=TRUE),
             .groups = "keep") 
 #-----------------------------
 # estimate exact binomial
@@ -167,6 +167,10 @@ mu_p <- mu_p %>%
 
 ```
 
+
+Plot the relationship between community level malaria parasitemia and _P. falciparum_ IgG seroprevalence. The correlations are estimated using Spearman rank correlation and the line is a locally weighted regression smoother, trimmed to avoid edge effects. 
+
+The first plot includes all antigens, and the later plots are stratified by shorter- and longer-duration IgG responses.
 
 ```{r pf infection vs seroprev all antigens scatter, message=FALSE, warning=FALSE}
 
@@ -212,13 +216,13 @@ mu_pshort <- d3short %>%
   group_by(pathogen,antigenf,clusterid,arm) %>%
   filter(agem>12) %>%
   mutate(nomiss_ab = ifelse(!is.na(seropos),1,0),
-         nomiss_ts = ifelse(!is.na(pf_thicksmear),1,0)) %>%
+         nomiss_ts = ifelse(!is.na(malaria_thicksmear),1,0)) %>%
   summarize(nobs_ab = sum(nomiss_ab), 
             npos_ab = sum(seropos, na.rm=TRUE),
             nobs_ts = sum(nomiss_ts), 
-            npos_ts = sum(pf_thicksmear, na.rm=TRUE),
+            npos_ts = sum(malaria_thicksmear, na.rm=TRUE),
             seroprev = mean(seropos),
-            pfprev = mean(pf_thicksmear, na.rm=TRUE),
+            pfprev = mean(malaria_thicksmear, na.rm=TRUE),
             .groups = "keep") 
 #-----------------------------
 # estimate exact binomial
@@ -287,13 +291,13 @@ mu_plong <- d3long %>%
   group_by(pathogen,antigenf,clusterid,arm) %>%
   filter(agem>=12) %>%
   mutate(nomiss_ab = ifelse(!is.na(seropos),1,0),
-         nomiss_ts = ifelse(!is.na(pf_thicksmear),1,0)) %>%
+         nomiss_ts = ifelse(!is.na(malaria_thicksmear),1,0)) %>%
   summarize(nobs_ab = sum(nomiss_ab), 
             npos_ab = sum(seropos, na.rm=TRUE),
             nobs_ts = sum(nomiss_ts), 
-            npos_ts = sum(pf_thicksmear, na.rm=TRUE),
+            npos_ts = sum(malaria_thicksmear, na.rm=TRUE),
             seroprev = mean(seropos),
-            pfprev = mean(pf_thicksmear, na.rm=TRUE),
+            pfprev = mean(malaria_thicksmear, na.rm=TRUE),
             .groups = "keep") 
 #-----------------------------
 # estimate exact binomial
@@ -358,18 +362,18 @@ The figure below sorts communities by baseline malaria parasitemia, measured by 
 # summarize baseline community 
 # Pf prevalence by thicksmear
 #-------------------------------
-dpfbase <- d1 %>% 
-  select(clusterid,arm,phase,childid,phase,pf_thicksmear) %>%
+dmpbase <- d1 %>% 
+  select(clusterid,arm,phase,childid,phase,malaria_thicksmear) %>%
   filter(phase==0) %>%
   group_by(clusterid,arm,childid,phase) %>%
   slice(1) %>%
   group_by(clusterid,arm,phase) %>%
-  summarize(pfbase = mean(pf_thicksmear, na.rm=TRUE), .groups = "keep") %>%
+  summarize(mpbase = mean(malaria_thicksmear, na.rm=TRUE), .groups = "keep") %>%
   ungroup() %>%
-  arrange(pfbase) %>%
-  mutate(pfbase_rank = row_number())
+  arrange(mpbase) %>%
+  mutate(mpbase_rank = row_number())
 
-ggplot(data=dpfbase,aes(x=pfbase_rank,y=pfbase,color=arm)) +
+ggplot(data=dmpbase,aes(x=mpbase_rank,y=mpbase,color=arm)) +
   geom_hline(yintercept=0.07,color="gray40")+
   geom_point() +
   scale_y_continuous(breaks=seq(0,0.4,by=0.1),labels = sprintf("%1.0f",seq(0,0.4,by=0.1)*100)) +
@@ -394,10 +398,10 @@ In this exploratory analysis to test this hypothesis, we stratified communities 
 # baseline measurements
 #-------------------------------
 d4 <- d3 %>%
-  left_join(dpfbase %>% select(clusterid, pfbase,pfbase_rank),by = "clusterid") %>%
+  left_join(dmpbase %>% select(clusterid, mpbase,mpbase_rank),by = "clusterid") %>%
   filter(phase>0) %>%
   # create an indicator of low Pf, defined as <10% prevalence at baseline
-  mutate(pfbasef = factor(ifelse(pfbase<0.06,"baseline parasitemia <=5%","baseline parasitemia >5%"),levels=c("baseline parasitemia <=5%","baseline parasitemia >5%")))
+  mutate(mpbasef = factor(ifelse(mpbase<0.06,"baseline parasitemia <=5%","baseline parasitemia >5%"),levels=c("baseline parasitemia <=5%","baseline parasitemia >5%")))
 ```
 
 ## Age dependent means
@@ -423,8 +427,8 @@ d4 <- d4 %>%
          clusteridf = factor(clusterid),
          phasef = factor(phase, levels=c("6","12","24","36"))
          )
-d4low <- d4 %>% filter(pfbasef=="baseline parasitemia <=5%")
-d4high <- d4 %>% filter(pfbasef!="baseline parasitemia <=5%")
+d4low <- d4 %>% filter(mpbasef=="baseline parasitemia <=5%")
+d4high <- d4 %>% filter(mpbasef!="baseline parasitemia <=5%")
 #----------------------------------------
 # fit a GAM model fitting separate
 # splines by age for each arm
@@ -510,7 +514,7 @@ d_shade_box <- data.frame(antigenf = levels(fitp_malaria$antigenf)) %>%
          antigenf = factor(antigenf,levels(fitp_malaria$antigenf))
          )
 d_text_labs <- data.frame(antigenf=levels(fitp_malaria$antigenf),
-                          pfbasef="baseline parasitemia <=5%",
+                          mpbasef="baseline parasitemia <=5%",
                           x=c(36,36), 
                           y=c(0.95,0.75), 
                           arm=c("placebo","azithro"),
@@ -521,7 +525,7 @@ d_text_labs <- data.frame(antigenf=levels(fitp_malaria$antigenf),
 pcols <- cbpal[c(2,6)]
 
 plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit, group = arm, color = arm, fill = arm)) +
-  facet_grid(cols=vars(pfbasef)) +
+  facet_grid(cols=vars(mpbasef)) +
   # add shade box
   geom_rect(data=d_shade_box, inherit.aes = FALSE, aes(xmin = minX, xmax = maxX, ymin = 0, ymax = 1), alpha=0.1) +
   # approximate pointwise 95% CIs
@@ -550,7 +554,7 @@ ggsave(here("figures","mordor-ab-age-curves-malaria-parasitemia-stratified.png")
 
 
 
-## Effects of intervention by subgroup
+## Effects on seroprevalence, by baseline parasitemia
 
 Estimate average difference in seroprevalence stratified by baseline malaria parasitemia (<=5%, >5%). Limit the analysis to ages 12-59 months to avoid maternal IgG contributions.
 
@@ -566,10 +570,10 @@ d5  <- d4  %>% filter(agem >= 12)
 # by antigen (including composites)
 #-----------------------------
 n_serop <- d5 %>%
-  group_by(antigenf,pfbasef,arm) %>%
+  group_by(antigenf,mpbasef,arm) %>%
   mutate(nomiss = ifelse(!is.na(seropos),1,0)) %>%
   summarize(nobs = sum(nomiss), .groups = "keep") %>%
-  pivot_wider(id_cols = c(antigenf,pfbasef), names_from = "arm", values_from = nobs) %>%
+  pivot_wider(id_cols = c(antigenf,mpbasef), names_from = "arm", values_from = nobs) %>%
   rename(placebo_n = placebo,
          azithro_n = azithro)
 
@@ -579,15 +583,15 @@ n_serop <- d5 %>%
 # within subgroups
 #-----------------------------
 mu_serop <- d5 %>%
-  group_by(antigenf,pfbasef,arm) %>%
+  group_by(antigenf,mpbasef,arm) %>%
   summarize(mean_serop = mean(seropos), .groups = "keep") %>%
-  pivot_wider(id_cols = c(antigenf,pfbasef), names_from = "arm", values_from = mean_serop) %>%
+  pivot_wider(id_cols = c(antigenf,mpbasef), names_from = "arm", values_from = mean_serop) %>%
   mutate(diff = azithro - placebo)
 
 #-----------------------------
 # merge means onto the Ns
 #-----------------------------
-mu_serop <- left_join(n_serop, mu_serop, by=c("antigenf","pfbasef"))
+mu_serop <- left_join(n_serop, mu_serop, by=c("antigenf","mpbasef"))
 ```
 
 
@@ -602,7 +606,7 @@ set.seed(1235)
 nreps <- 1000
 ncl <- length(unique(d5$clusterid))
 bsamp <- matrix(sample(unique(d5$clusterid),size = ncl*nreps, replace = TRUE),nrow = ncl,ncol = nreps)
-d_serop_boot <- d5 %>% ungroup() %>% select(clusterid,antigenf,pfbasef,arm,seropos)
+d_serop_boot <- d5 %>% ungroup() %>% select(clusterid,antigenf,mpbasef,arm,seropos)
 mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   
   if(bi %% 50 == 0) cat(bi,"\n") else cat(".")
@@ -610,9 +614,9 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
   di <- left_join(data.frame(clusterid = bsamp[,bi], stringsAsFactors = FALSE),
                   d_serop_boot, by = "clusterid")
   di %>%
-  group_by(antigenf,pfbasef,arm) %>%
+  group_by(antigenf,mpbasef,arm) %>%
   summarize(mean_serop = mean(seropos), .groups = "keep") %>%
-  pivot_wider(id_cols = c(antigenf,pfbasef), names_from = "arm", values_from = mean_serop) %>%
+  pivot_wider(id_cols = c(antigenf,mpbasef), names_from = "arm", values_from = mean_serop) %>%
   mutate(diff = azithro - placebo, 
          bootrep = bi)
 
@@ -627,7 +631,7 @@ mu_serop_boot <- foreach(bi = 1:nreps, .combine = rbind) %do% {
 # distribution merge to estimates
 #-----------------------------
 mu_serop_ci <- mu_serop_boot %>%
-  group_by(antigenf,pfbasef) %>%
+  group_by(antigenf,mpbasef) %>%
   mutate(mean_p_lb = quantile(placebo, probs = 0.025,na.rm=TRUE),
          mean_p_ub = quantile(placebo, probs = 0.975,na.rm=TRUE),
          mean_a_lb = quantile(azithro, probs = 0.025,na.rm=TRUE),
@@ -636,11 +640,11 @@ mu_serop_ci <- mu_serop_boot %>%
          diff_bse = sd(diff,na.rm=TRUE),
          diff_lb = quantile(diff, probs = 0.025,na.rm=TRUE),
          diff_ub = quantile(diff, probs = 0.975,na.rm=TRUE)) %>%
-  select(antigenf,pfbasef,starts_with("mean_"), starts_with("diff_")) %>%
+  select(antigenf,mpbasef,starts_with("mean_"), starts_with("diff_")) %>%
   slice(1)
   
 mu_serop2 <- mu_serop %>%
-  left_join(mu_serop_ci, by = c("antigenf","pfbasef"))
+  left_join(mu_serop_ci, by = c("antigenf","mpbasef"))
   
 ```
 
@@ -650,14 +654,15 @@ mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")
          ) %>%
-  select(pfbasef,placebo, azithro, diff_ci)
+  select(mpbasef,azithro_n,placebo_n,azithro,placebo, diff_ci)
 
 knitr::kable(mu_serop_table,
-             col.names = c("Baseline Malaria Parasitemia", "Placebo","Azithromycin","Difference (95% CI)"), 
-             digits = c(0,2,2,0),
+             caption = "Proportion of children in MORDOR Niger ages 12-59 months who were seropositive to P. falciparum antigens, stratified by community-level baseline malaria parasitemia prevalence. Confidence intervals estimated with a bootstrap resample of communities (1,000 iterations).",
+             col.names = c("Baseline Malaria Parasitemia","Azithromycin", "Placebo","Azithromycin","Placebo","Difference (95% CI)"), 
+             digits = c(0,0,0,2,2,0),
              align = "lccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 1))
+  add_header_above(c(" " = 1,"N measured" = 2,  "Proportion\nSeropositive" = 2,  " " = 1))
 
 ```
 
