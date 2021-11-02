@@ -783,13 +783,10 @@ write_csv(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
 #-------------------------------
 # save a public version of the 
 # data to share
-# dropping study IDs and antigens
-# not included in the malaria
-# and bacteria/protozoa analyses
+# dropping study IDs 
 #-------------------------------
 d12 <- d11 %>%
-  select(-gwu, -masterperson_mcd,-pf_thicksmear,-pf_density,-pf_gameto) %>%
-  filter(!antigen %in% c("pgp3","ct694","nie")) %>%
+  select(-gwu, -masterperson_mcd) %>%
   mutate(antigenf = factor(antigenf))
 summary(d12)
 
