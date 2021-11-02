@@ -183,9 +183,9 @@ md3 <- md2 %>%
          trdate = txdate,
          dose = dosex, 
          sex = gendermcd_,
-         pf_thicksmear = thicksmear_cons_bsmear_,
-         pf_density = officialdensity_bsmear_,
-         pf_gameto = gameto_bsmear_,
+         malaria_thicksmear = thicksmear_cons_bsmear_,
+         malaria_density = officialdensity_bsmear_,
+         malaria_gameto = gameto_bsmear_,
          contains("age")
          ) %>% 
   mutate(sex = factor(sex,levels=c("FEMALE","MALE"),labels = c("female","male")),
@@ -774,7 +774,7 @@ d11 <- d10 %>%
                 masterperson_mcd,childid_public,agem,agem_start, agem_start_under6, sex, 
          testdate,
          wet_start,wet_end,season,
-         pf_thicksmear,pf_density,pf_gameto,
+         malaria_thicksmear,malaria_density,malaria_gameto,
          dbsid,type,well,pathogen,antigen,antigenf,
          mfi,logmfi,serocut,serocut_desc,seropos)
 write_rds(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
