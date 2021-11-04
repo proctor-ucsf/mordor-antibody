@@ -598,7 +598,7 @@ Estimate average difference in seroprevalence stratified by baseline malaria par
 # limit to children older than
 # 12 months
 #-----------------------------
-d5  <- d4  %>% filter(agem >= 12)
+d5 <- d4  %>% filter(agem >= 12)
 
 #-----------------------------
 # tally number of observations
@@ -701,6 +701,121 @@ knitr::kable(mu_serop_table,
 
 ```
 
+```{r FOI estimates low malaria parasitemia}
+
+d5low <- d5 %>%
+  filter(mpbasef=="baseline parasitemia ≤5%")
+
+set.seed(123)
+gfit_low <- gam(seropos ~ s(agem, bs="cr") + arm +
+              s(clusteridf, bs = "re",by=dummy), 
+            data=d5low,
+                family=binomial(link="cloglog"))
+gsum_low <- summary(gfit_low)
+    # estimate average seroconversion rate by arm
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(d5low$agem),max(d5low$agem)), arm = "placebo", dummy=0, clusteridf = "community-1")
+    newd1 <- data.frame(agem=c(min(d5low$agem),max(d5low$agem)), arm = "azithro", dummy=0, clusteridf = "community-1")
+    lambda0 <- avgFOI(gfit_low, newdata=newd0, a1=min(d5low$agem),a2=max(d5low$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit_low, newdata=newd1, a1=min(d5low$agem),a2=max(d5low$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit_low$coefficients[2]))
+    loghr_se <-as.numeric(gsum_low$se[2])
+    # return the results
+foi_ests_low <- data.frame(antigenf = unique(d5low$antigenf),
+                           mpbasef = unique(d5low$mpbasef),
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se)
+                      )
+
+foi_ests_tab_low <- foi_ests_low %>%
+  mutate(lambda0c = paste0(sprintf("%1.2f",lambda0*12)," (",
+                            sprintf("%1.2f",lambda0_min95*12),", ", 
+                            sprintf("%1.2f",lambda0_max95*12),")"),
+         lambda1c = paste0(sprintf("%1.2f",lambda1*12)," (", 
+                            sprintf("%1.2f",lambda1_min95*12),", ", 
+                            sprintf("%1.2f",lambda1_max95*12),")"),
+         hrc = paste0(sprintf("%1.2f",hr)," (",
+                       sprintf("%1.2f",hr_min95),", ",
+                       sprintf("%1.2f",hr_max95),")")
+         )
+
+```
+
+```{r FOI estimates high malaria parasitemia}
+
+d5high <- d5 %>%
+  filter(mpbasef=="baseline parasitemia >5%")
+
+set.seed(123)
+gfit_high <- gam(seropos ~ s(agem, bs="cr") + arm +
+              s(clusteridf, bs = "re",by=dummy), 
+            data=d5high,
+                family=binomial(link="cloglog"))
+gsum_high <- summary(gfit_high)
+    # estimate average seroconversion rate by arm
+    # use a parametric bootstrap of the posterior VCOV matrix to get inference
+    newd0 <- data.frame(agem=c(min(d5high$agem),max(d5high$agem)), arm = "placebo", dummy=0, clusteridf = "community-4")
+    newd1 <- data.frame(agem=c(min(d5high$agem),max(d5high$agem)), arm = "azithro", dummy=0, clusteridf = "community-4")
+    lambda0 <- avgFOI(gfit_high, newdata=newd0, a1=min(d5high$agem),a2=max(d5high$agem),nreps=10000)
+    lambda1 <- avgFOI(gfit_high, newdata=newd1, a1=min(d5high$agem),a2=max(d5high$agem),nreps=10000)
+    # estimate HR and 95% CI from the model from the model 
+    hr <- as.numeric(exp(gfit_high$coefficients[2]))
+    loghr_se <-as.numeric(gsum_high$se[2])
+    # return the results
+foi_ests_high <- data.frame(antigenf = unique(d5high$antigenf),
+                            mpbasef = unique(d5high$mpbasef),
+                      lambda0 = lambda0$mufoi,
+                      lambda0_se = lambda0$mufoi_se,
+                      lambda0_min95 = lambda0$mufoi_lb,
+                      lambda0_max95 = lambda0$mufoi_ub,
+                      lambda1 = lambda1$mufoi,
+                      lambda1_se = lambda1$mufoi_se,
+                      lambda1_min95 = lambda1$mufoi_lb,
+                      lambda1_max95 = lambda1$mufoi_ub,
+                      hr = hr, 
+                      loghr_se = loghr_se,
+                      hr_min95 = exp(log(hr) - 1.96*loghr_se),
+                      hr_max95 = exp(log(hr) + 1.96*loghr_se)
+                      )
+
+
+foi_ests_tab_high <- foi_ests_high %>%
+  mutate(lambda0c = paste0(sprintf("%1.2f",lambda0*12)," (",
+                            sprintf("%1.2f",lambda0_min95*12),", ", 
+                            sprintf("%1.2f",lambda0_max95*12),")"),
+         lambda1c = paste0(sprintf("%1.2f",lambda1*12)," (", 
+                            sprintf("%1.2f",lambda1_min95*12),", ", 
+                            sprintf("%1.2f",lambda1_max95*12),")"),
+         hrc = paste0(sprintf("%1.2f",hr)," (",
+                       sprintf("%1.2f",hr_min95),", ",
+                       sprintf("%1.2f",hr_max95),")")
+         )
+
+```
+
+```{r summary stratified scr table}
+foi_ests_tab <- foi_ests_tab_low %>%
+  bind_rows(foi_ests_tab_high)
+
+knitr::kable(foi_ests_tab %>% select(mpbasef,lambda0c,lambda1c,hrc),digits=3,
+             caption="Average P. falciparum seroconversion rate (SCR) per year estimated from age-structured seroprevalence, stratified by baseline parasitemia",
+             align = "lccc",
+             col.names = c("Malaria parasitemia","Placebo SCR (95% CI)","Azithromycin SCR (95% CI)", "HR (95% CI)"),
+             row.names = FALSE)  %>%
+  kable_styling(bootstrap_options = "striped",full_width = TRUE)
+
+```
 
 # Session Info
 ```{r session info}
