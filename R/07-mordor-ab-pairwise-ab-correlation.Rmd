@@ -140,7 +140,8 @@ antigen_cor_plot <- ggcorrplot(d_corr_ests,
                                lab = TRUE,
                                lab_size = 3,
                                insig = "blank",
-                               colors = c("#6D9EC1", "white", "#E46726"))
+                               colors = c(cbpal[8], "white", cbpal[4])
+                               )
 
 antigen_cor_plot
 
