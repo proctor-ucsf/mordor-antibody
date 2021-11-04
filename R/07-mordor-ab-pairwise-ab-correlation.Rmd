@@ -87,8 +87,8 @@ dmfi <- d1 %>%
 
 ```{r ETEC v CTB figure, message=FALSE}
 
-# estimate Spearman rank correlation for printing
-sp_corr <- cor(dmfi$etec,dmfi$ctb, method = "spearman")
+# estimate pearson correlation for printing
+sp_corr <- cor(dmfi$etec,dmfi$ctb, method = "pearson")
 cor_lab <- paste(sprintf("%1.2f",sp_corr))
 
 # custom log labels
@@ -102,7 +102,7 @@ log10labs <- c(
 plot_etec_ctb <- ggplot(data=dmfi, aes(x = ctb, y = etec)) +
   geom_point(alpha = 0.2, size = 0.3, color = vircols[5]) +
   geom_smooth(color = "black",lwd=0.75,se=FALSE, method = "loess") +
-  annotate("text",x=1.1,y=4.25,label = paste("rho ==",deparse(cor_lab)),parse=TRUE, hjust =0) +
+  annotate("text",x=1.1,y=4.25,label = paste("r ==",deparse(cor_lab)),parse=TRUE, hjust =0) +
   scale_x_continuous(breaks=1:4,labels = log10labs) +
   scale_y_continuous(breaks=1:4,labels = log10labs) +
   labs(x = "Cholera CTB  IgG Luminex Response (MFI-bg)", y = "ETEC LTB IgG Luminex Response (MFI-bg)") +
