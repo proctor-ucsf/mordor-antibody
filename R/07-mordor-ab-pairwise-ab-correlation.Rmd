@@ -118,7 +118,7 @@ ggsave(filename = here("figures","mordor-ab-etec-v-ctb.png"),plot_etec_ctb, devi
 
 Estimate the correlation in log10 MFI values for all antigen pairs
 
-```{r pairwise correlation plot, fig.width = 8}
+```{r pairwise correlation plot, fig.width = 10,fig.height=10}
 
 # pivot the MFI values wider to estimate correlation
 d_corr <- d %>%
@@ -140,7 +140,7 @@ antigen_cor_plot <- ggcorrplot(d_corr_ests,
                                lab = TRUE,
                                lab_size = 3,
                                insig = "blank",
-                               colors = c(cbpal[8], "white", cbpal[4])
+                               colors = c(cbpal[2], "white", cbpal[3])
                                )
 
 antigen_cor_plot
