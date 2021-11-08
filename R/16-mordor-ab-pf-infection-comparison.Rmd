@@ -701,6 +701,27 @@ knitr::kable(mu_serop_table,
 
 ```
 
+Estimate interaction p-values on the additive scale using an ANOVA on cluster level means.
+
+```{r seroprev p-values for interaction phase}
+
+#-----------------------------
+# test for interaction on
+# the additive scale using
+# ANOVA F-test on cluster level means
+# See Hayes and Moulten 2017, 
+# section 10.8 (p241)
+#-----------------------------
+clmeans_serop <- d5 %>% 
+    group_by(arm,mpbasef,clusterid) %>%
+    summarize(seroprev = mean(seropos), .groups = "keep")
+
+fiti <- lm(seroprev ~ arm*mpbasef, data=clmeans_serop)
+anova(fiti)
+
+```
+
+
 ```{r FOI estimates low malaria parasitemia}
 
 d5low <- d5 %>%
