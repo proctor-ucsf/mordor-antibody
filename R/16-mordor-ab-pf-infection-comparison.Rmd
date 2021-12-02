@@ -52,12 +52,9 @@ d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
 
 #-------------------------------
 # drop "_public" suffix from IDs
-# drop GST negative control values
 #-------------------------------
 d1 <- d %>%
-  rename(clusterid = clusterid_public, childid = childid_public) %>%
-  filter(!antigen %in% c("gst")) %>%
-  mutate(antigenf = factor(antigenf))
+  rename(clusterid = clusterid_public, childid = childid_public)
 
 #-------------------------------
 # restrict to Pf malaria antigens

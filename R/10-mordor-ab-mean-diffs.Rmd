@@ -55,10 +55,12 @@ d <- d %>%
   rename(clusterid = clusterid_public, childid = childid_public)
 
 #-------------------------------
-# drop tGST negative control values
+# drop GST negative control values
+# drop trachoma and strongy because
+# no transmission in this population
 #-------------------------------
 d1 <- d %>%
-  filter(!antigen %in% c("gst")) %>%
+  filter(!antigen %in% c("gst","pgp3","ct694","nie")) %>%
   mutate(antigenf = factor(antigenf))
 
 #-------------------------------

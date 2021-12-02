@@ -57,9 +57,12 @@ d2 <- d %>%
 # remove CTB because it is so
 # highly correlated with ETEC
 # remove GST negative control
+# remove trachoma and strongy
+# because no transmission in this
+# population
 #-------------------------------
 d2 <- d2 %>%
-  filter(!antigen %in% c("ctb","gst")) %>%
+  filter(!antigen %in% c("ctb","gst","pgp3","ct694","nie")) %>%
   mutate(antigenf = factor(antigenf))
 ```
 
