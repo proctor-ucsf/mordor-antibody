@@ -51,10 +51,13 @@ d <- read_rds(here("data","mordor-ab-analysis-public.rds"))
 #-------------------------------
 # drop "_public" suffix from IDs
 # drop the GST negative control values
+# remove trachoma and strongy
+# because no transmission in this
+# population
 #-------------------------------
 d2 <- d %>%
   rename(clusterid = clusterid_public, childid = childid_public) %>%
-  filter(!antigen %in% c("gst")) %>%
+  filter(!antigen %in% c("gst","pgp3","ct694","nie")) %>%
   mutate(antigenf = factor(antigenf))
 ```
 

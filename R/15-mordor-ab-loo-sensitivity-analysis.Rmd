@@ -278,6 +278,7 @@ loo_mu2 <- loo_mu %>%
 ```
 
 ```{r seroprev loo summary, warning=FALSE}
+set.seed(1347981)
 loo_serop_sum <- loo_serop
 loo_serop_sum$group = "bacteria & protozoa"
 loo_serop_sum$group[grep("P. ",loo_serop_sum$pathogen)] <- "malaria"
@@ -402,6 +403,7 @@ loo_loghr_mu2 <- loo_loghr_mu %>%
 
 
 ```{r HR loo summary, warning = FALSE}
+set.seed(3274)
 loo_loghr_sum <- loo_loghr %>%
   mutate(hr = exp(loghr)) %>%
   mutate(antigenf = factor(antigenf, levels = levels(d_foi$antigenf)))

@@ -568,9 +568,10 @@ ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-malaria.p
 
 ## Cluster level seroprevalence
 
-Enterics
+Bacteria and protozoa
 
 ```{r plot seroprev by community enterics, fig.width = 6, fig.height = 4}
+set.seed(189724)
 pcols <- cbpal[c(2,6)]
 p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" ), aes(x = arm, y = seroprev, color = arm)) +
   facet_wrap(~antigenf, ncol = 3) +
@@ -593,6 +594,7 @@ ggsave(filename = here("figures","mordor-ab-community-seroprev-bacteria-protozoa
 Malaria
 
 ```{r plot seroprev by community malaria, fig.width = 5, fig.height = 4}
+set.seed(3243)
 pcols <- cbpal[c(2,6)]
 p_comm <- ggplot(data = mu_serop %>% filter(group == "malaria"), aes(x = arm, y = seroprev, color = arm)) +
   facet_wrap(~antigenf, ncol = 3) +
