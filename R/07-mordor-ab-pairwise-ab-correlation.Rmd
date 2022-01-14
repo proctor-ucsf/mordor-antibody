@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Assess pairwise correlation between antibody responses"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -145,7 +145,7 @@ antigen_cor_plot <- ggcorrplot(d_corr_ests,
 
 antigen_cor_plot
 
-ggsave(filename = here("figures","mordor-ab-ab-correlation-matrix.png"),antigen_cor_plot, device = "png",width=9, height = 9)
+ggsave(filename = here("figures","mordor-ab-ab-correlation-matrix.pdf"),antigen_cor_plot, device = "pdf",width=9, height = 9)
 
 ```
 

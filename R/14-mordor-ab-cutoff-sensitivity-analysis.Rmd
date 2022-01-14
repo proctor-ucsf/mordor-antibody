@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Sensitivity analysis that varies cutoff values +/- 20%"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -354,7 +354,7 @@ plot_serop_sens <- ggplot(data = mu_serop_plot, aes(x = antigenf, y = diff, colo
   geom_point(alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = seq(-0.2,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.2,0.1,by=0.05)*100)) +
-  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo",tag="a") +
+  labs(x = NULL, y = "Difference in seroprevalence (%)\nazithromycin - placebo",tag="a") +
   coord_cartesian(ylim = c(-0.22,0.11)) +
   # theme_minimal() +
   theme(
@@ -365,7 +365,7 @@ plot_serop_sens <- ggplot(data = mu_serop_plot, aes(x = antigenf, y = diff, colo
 
 plot_serop_sens
 
-ggsave(here("figures","mordor-ab-diff-seroprev-cutoff-sens.png"),plot_serop_sens,device = "png",width = 7, height = 6)
+ggsave(here("figures","mordor-ab-diff-seroprev-cutoff-sens.pdf"),plot_serop_sens,device = "pdf",width = 7, height = 6)
 ```
 
 
@@ -541,7 +541,7 @@ plot_hr_sens <- ggplot(data = mu_scr_plot, aes(x = antigenf, y = hr, color = ana
   geom_point(alpha=1, position = position_nudge(x = rep(c(-0.2,0,0.2),15))) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
-  labs(x = NULL, y = "hazard ratio \nazithromycin / placebo",tag="b") +
+  labs(x = NULL, y = "Hazard ratio \nazithromycin / placebo",tag="b") +
   coord_cartesian(ylim = c(0.4,2)) +
   # theme_minimal() +
   theme(
@@ -552,7 +552,7 @@ plot_hr_sens <- ggplot(data = mu_scr_plot, aes(x = antigenf, y = hr, color = ana
 
 plot_hr_sens
 
-ggsave(here("figures","mordor-ab-hr-cutoff-sens.png"),plot_hr_sens,device = "png",width = 7, height = 6)
+ggsave(here("figures","mordor-ab-hr-cutoff-sens.pdf"),plot_hr_sens,device = "pdf",width = 7, height = 6)
 ```
 
 

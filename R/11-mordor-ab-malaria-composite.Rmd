@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Breadth of response to malaria antigens with composite analyses"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -189,14 +189,14 @@ plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit,
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,1.04), xlim = c(0,60)) +
-  labs(x = "age, months", y = expression(paste(italic("P. falciparum")," IgG seroprevalence (%)"))) +
+  labs(x = "Age, months", y = expression(paste(italic("P. falciparum")," IgG seroprevalence (%)"))) +
   theme_minimal(base_size = 14) +
   theme(
     legend.position = "none"
   )
 plot_age_seroprev_malaria
 
-ggsave(here("figures","mordor-ab-age-curves-malaria-composite.png"),plot_age_seroprev_malaria, device = "png", width = 4, height = 4)
+ggsave(here("figures","mordor-ab-age-curves-malaria-composite.pdf"),plot_age_seroprev_malaria, device = "pdf", width = 4, height = 4)
 
 ```
 
@@ -603,14 +603,14 @@ plot_age_seroprev_malaria_ls <- ggplot(data = fitp_malaria_ls , aes(x = agem, y 
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,1.04), xlim = c(0,60)) +
-  labs(x = "age, months", y = expression(paste(italic("P. falciparum")," IgG seroprevalence (%)"))) +
+  labs(x = "Age, months", y = expression(paste(italic("P. falciparum")," IgG seroprevalence (%)"))) +
   theme_minimal(base_size = 14) +
   theme(
     legend.position = "none"
   )
 plot_age_seroprev_malaria_ls
 
-ggsave(here("figures","mordor-ab-age-curves-malaria-composite-long-short.png"),plot_age_seroprev_malaria_ls, device = "png", width = 8, height = 4)
+ggsave(here("figures","mordor-ab-age-curves-malaria-composite-long-short.pdf"),plot_age_seroprev_malaria_ls, device = "pdf", width = 8, height = 4)
 
 ```
 

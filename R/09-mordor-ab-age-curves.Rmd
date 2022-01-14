@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Compare age-dependent means and seroprevalence by arm"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -389,7 +389,7 @@ plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit, 
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,4.65)) +
-  labs(x = "age, months", y = "Luminex response (MFI-bg)", tag = "a") +
+  labs(x = "Age, months", y = "IgG Luminex response (MFI-bg)", tag = "a") +
   theme_minimal() +
   theme(
     strip.text.x = element_blank(),
@@ -453,7 +453,7 @@ plot_age_seroprev_enterics <- ggplot(data = fitp_enterics , aes(x = agem, y = fi
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,1.04)) +
-  labs(x = "age, months", y = "seroprevalence (%)", tag = "b") +
+  labs(x = "Age, months", y = "IgG seroprevalence (%)", tag = "b") +
   theme_minimal() +
   theme(
     strip.text.x = element_blank(),
@@ -472,7 +472,7 @@ pcurve_composite_enterics <- grid.arrange(plot_age_mfi_enterics,
                                           plot_age_seroprev_enterics,
                                           ncol=2,nrow=1,widths=c(2,1.1))
 
-ggsave(here("figures","mordor-ab-age-curves-enterics.png"),pcurve_composite_enterics, device = "png", width = 8, height = 11)
+ggsave(here("figures","mordor-ab-age-curves-bacteria-protozoa.pdf"),pcurve_composite_enterics, device = "pdf", width = 8, height = 11)
 
 ```
 
@@ -511,7 +511,7 @@ plot_age_foi_enterics <- ggplot(data = foip_enterics , aes(x = agem, y = 12*foi,
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   # coord_cartesian(ylim = c(0,8.4)) +
-  labs(x = "age, months", y = expression(paste("seroconversion rate per year (force of infection), ",lambda,"(a)"))) +
+  labs(x = "Age, months", y = expression(paste("Seroconversion rate per year (force of infection), ",lambda,"(a)"))) +
   theme_minimal() +
   theme(
     strip.text.x = element_blank(),
@@ -586,7 +586,7 @@ plot_age_seroprev_campy <- ggplot(data = fit_camp2 , aes(x = agem, y = fit, grou
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,1.04)) +
-  labs(x = "age, months", y = expression(paste(italic("Campylobacter")," IgG seroprevalence (%)"))) +
+  labs(x = "Age, months", y = expression(paste(italic("Campylobacter")," IgG seroprevalence (%)"))) +
   theme_minimal(base_size = 14) +
   theme(
     strip.text.x = element_blank(),
@@ -597,7 +597,7 @@ plot_age_seroprev_campy <- ggplot(data = fit_camp2 , aes(x = agem, y = fit, grou
 
 plot_age_seroprev_campy
 
-ggsave(here("figures","mordor-ab-age-curves-campy.png"),plot_age_seroprev_campy, device = "png", width = 4, height = 4)
+ggsave(here("figures","mordor-ab-age-curves-campy.pdf"),plot_age_seroprev_campy, device = "pdf", width = 4, height = 4)
 
 ```
 
@@ -652,7 +652,7 @@ plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit, gr
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,4.65)) +
-  labs(x = "age, months", y = "Luminex response (MFI-bg)", tag = "a") +
+  labs(x = "Age, months", y = "IgG Luminex response (MFI-bg)", tag = "a") +
   theme_minimal() +
   theme(
     strip.text.x = element_blank(),
@@ -706,7 +706,7 @@ plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit,
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,1.04), xlim = c(0,60)) +
-  labs(x = "age, months", y = "seroprevalence (%)", tag = "b") +
+  labs(x = "Age, months", y = "IgG seroprevalence (%)", tag = "b") +
   theme_minimal() +
   theme(
     strip.text.x = element_blank(),
@@ -724,7 +724,7 @@ pcurve_composite_malaria <- grid.arrange(plot_age_mfi_malaria,
                                           plot_age_seroprev_malaria,
                                           ncol=2,nrow=1,widths=c(1.5,1))
 
-ggsave(here("figures","mordor-ab-age-curves-malaria.png"),pcurve_composite_malaria, device = "png", width = 8, height = 19)
+ggsave(here("figures","mordor-ab-age-curves-malaria.pdf"),pcurve_composite_malaria, device = "pdf", width = 8, height = 19)
 ```
 
 
@@ -761,7 +761,7 @@ plot_age_foi_malaria <- ggplot(data = foip_malaria , aes(x = agem, y = 12*foi, g
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,2), xlim = c(0,60)) +
-  labs(x = "age, months", y = expression(paste("seroconversion rate per year (force of infection), ",lambda,"(a)"))) +
+  labs(x = "Age, months", y = expression(paste("Seroconversion rate per year (force of infection), ",lambda,"(a)"))) +
   theme_minimal() +
   theme(
     strip.text.x = element_blank(),

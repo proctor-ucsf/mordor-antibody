@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Subgroup analyses"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -323,7 +323,7 @@ plot_mfi_diff_phase_enterics <- ggplot(data = mu_mfi_plot2 %>% filter(group!="ma
   geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.8,0.8,by=0.4), labels = sprintf("%1.1f",seq(-0.8,0.8,by=0.4))) +
   scale_color_manual(values = pcols) +
-  labs(x = "study phase (months)", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "a") +
+  labs(x = "Study phase (months)", y = "Difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "a") +
   coord_cartesian(ylim = c(-0.8,0.8)) +
   theme(
     legend.position = "none",
@@ -346,7 +346,7 @@ plot_mfi_diff_phase_malaria <- ggplot(data = mu_mfi_plot2 %>% filter(group=="mal
   geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.8,0.8,by=0.4), labels = sprintf("%1.1f",seq(-0.8,0.8,by=0.4))) +
   scale_color_manual(values = pcols) +
-  labs(x = "study phase (months)", y = "difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "b") +
+  labs(x = "Study phase (months)", y = "Difference in log10 Luminex response (MFI-bg)\nazithromycin - placebo", tag = "b") +
   coord_cartesian(ylim = c(-0.8,0.8)) +
   theme(
     legend.position = "none",
@@ -359,7 +359,7 @@ plot_mfi_diff_phase_malaria <- ggplot(data = mu_mfi_plot2 %>% filter(group=="mal
 ```{r mfi diff phase composite figure, fig.width = 10, fig.height = 6}
 plot_mfi_phase_comp <- grid.arrange(plot_mfi_diff_phase_enterics,plot_mfi_diff_phase_malaria,ncol=2,nrow=1, widths = c(1,0.75))
 
-ggsave(here("figures","mordor-ab-diff-mfi-by-phase.png"),plot_mfi_phase_comp,device = "png",width = 12, height = 4)
+ggsave(here("figures","mordor-ab-diff-mfi-by-phase.pdf"),plot_mfi_phase_comp,device = "pdf",width = 12, height = 4)
 ```
 
 ## Seroprevalence by phase and arm
@@ -534,7 +534,7 @@ plot_serop_diff_phase_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group!
   geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
-  labs(x = "study phase (months)", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "a") +
+  labs(x = "Study phase (months)", y = "Difference in seroprevalence (%)\nazithromycin - placebo", tag = "a") +
   coord_cartesian(ylim = c(-0.3,0.3)) +
   theme(
     legend.position = "none",
@@ -557,7 +557,7 @@ plot_serop_diff_phase_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group==
   geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
-  labs(x = "study phase (months)", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "b") +
+  labs(x = "Study phase (months)", y = "Difference in seroprevalence (%)\nazithromycin - placebo", tag = "b") +
   coord_cartesian(ylim = c(-0.3,0.3)) +
   theme(
     legend.position = "none",
@@ -571,7 +571,7 @@ plot_serop_diff_phase_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group==
 ```{r serop composite figure, fig.width = 10, fig.height = 6}
 plot_serop_comp_phase <- grid.arrange(plot_serop_diff_phase_enterics,plot_serop_diff_phase_malaria,ncol=2,nrow=1, widths = c(1,1))
 
-ggsave(here("figures","mordor-ab-diff-seroprev-by-phase.png"),plot_serop_comp_phase,device = "png",width = 13, height = 5)
+ggsave(here("figures","mordor-ab-diff-seroprev-by-phase.pdf"),plot_serop_comp_phase,device = "pdf",width = 13, height = 5)
 ```
 
 # Subgroup analysis by age at first treatment
@@ -789,7 +789,7 @@ plot_mfi_diff_age_malaria <- ggplot(data = mu_mfi_plot2 %>% filter(group=="malar
 ```{r mfi diff age composite figure, fig.width = 10, fig.height = 6}
 plot_mfi_age_comp <- grid.arrange(plot_mfi_diff_age_enterics,plot_mfi_diff_age_malaria,ncol=2,nrow=1, widths = c(1,0.75))
 
-ggsave(here("figures","mordor-ab-diff-mfi-by-age-group.png"),plot_mfi_age_comp,device = "png",width = 12, height = 4)
+ggsave(here("figures","mordor-ab-diff-mfi-by-age-group.pdf"),plot_mfi_age_comp,device = "pdf",width = 12, height = 4)
 ```
 
 
@@ -967,7 +967,7 @@ plot_serop_diff_age_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group!="
   geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
-  labs(x = "under age 6 months at trial start", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "a") +
+  labs(x = "Under age 6 months at trial start", y = "Difference in seroprevalence (%)\nazithromycin - placebo", tag = "a") +
   coord_cartesian(ylim = c(-0.3,0.3)) +
   theme(
     legend.position = "none",
@@ -990,7 +990,7 @@ plot_serop_diff_age_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group=="m
   geom_point(alpha=1) +
   scale_y_continuous(breaks = seq(-0.3,0.3,by=0.1), labels = sprintf("%1.0f",100*seq(-0.3,0.3,by=0.1))) +
   scale_color_manual(values = pcols) +
-  labs(x = "under age 6 months at trial start", y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "b") +
+  labs(x = "Under age 6 months at trial start", y = "Difference in seroprevalence (%)\nazithromycin - placebo", tag = "b") +
   coord_cartesian(ylim = c(-0.2,0.2)) +
   theme(
     legend.position = "none",
@@ -1004,7 +1004,7 @@ plot_serop_diff_age_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group=="m
 ```{r age composite figure, fig.width = 10, fig.height = 6}
 plot_serop_comp_age <- grid.arrange(plot_serop_diff_age_enterics,plot_serop_diff_age_malaria,ncol=2,nrow=1, widths = c(1,1))
 
-ggsave(here("figures","mordor-ab-diff-seroprev-by-age-group.png"),plot_serop_comp_age,device = "png",width = 13, height = 5)
+ggsave(here("figures","mordor-ab-diff-seroprev-by-age-group.pdf"),plot_serop_comp_age,device = "pdf",width = 13, height = 5)
 ```
 
 

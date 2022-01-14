@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Compare community malaria parasitemia and P. falciparum seroprevalence, and stratified analysis by baseline parasitemia"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -177,7 +177,7 @@ mu_p$plfit <- predict(lfit)
 mu_p$plfit[mu_p$pfprev<0.023 | mu_p$pfprev>0.2 ] <- NA
 
 # spearman correlation coefficient
-spcor <- cor.test(mu_p$pfprev,mu_p$seroprev,method="spearman")
+( spcor <- cor.test(mu_p$pfprev,mu_p$seroprev,method="spearman", exact = TRUE) )
 spcor_print <- sprintf("%1.2f",spcor$estimate)
 
 
@@ -201,7 +201,7 @@ plot_serop_vs_mp <- ggplot(data=mu_p, aes(x = pfprev, color = arm)) +
 
 plot_serop_vs_mp
 
-# ggsave(filename = here("figures","mordor-ab-serop-vs-mp-overall.png"),plot=plot_serop_vs_mp,device="png",height=5,width=5)
+# ggsave(filename = here("figures","mordor-ab-serop-vs-mp-overall.pdf"),plot=plot_serop_vs_mp,device="pdf",height=5,width=5)
 ```
 
 
@@ -261,7 +261,7 @@ mu_plong$plfit <- predict(lfitlong)
 mu_plong$plfit[mu_plong$pfprev<0.023 | mu_plong$pfprev>0.2 ] <- NA
 
 # spearman correlation coefficient
-spcorlong <- cor.test(mu_plong$pfprev,mu_plong$seroprev,method="spearman")
+( spcorlong <- cor.test(mu_plong$pfprev,mu_plong$seroprev,method="spearman", exact = TRUE) )
 spcorlong_print <- sprintf("%1.2f",spcorlong$estimate)
 
 
@@ -286,7 +286,7 @@ plot_serop_vs_mp_long <- ggplot(data=mu_plong, aes(x = pfprev, color = arm)) +
 
 plot_serop_vs_mp_long
 
-# ggsave(filename = here("figures","mordor-ab-serop-vs-mp-long.png"),plot=plot_serop_vs_mp_long,device="png",height=5,width=5)
+# ggsave(filename = here("figures","mordor-ab-serop-vs-mp-long.pdf"),plot=plot_serop_vs_mp_long,device="pdf",height=5,width=5)
 
 ```
 
@@ -346,7 +346,7 @@ mu_pshort$plfit <- predict(lfitshort)
 mu_pshort$plfit[mu_pshort$pfprev<0.02 | mu_pshort$pfprev>0.22 ] <- NA
 
 # spearman correlation coefficient
-spcorshort <- cor.test(mu_pshort$pfprev,mu_pshort$seroprev,method="spearman")
+(spcorshort <- cor.test(mu_pshort$pfprev,mu_pshort$seroprev,method="spearman", exact = TRUE) )
 spcorshort_print <- sprintf("%1.2f",spcorshort$estimate)
 
 
@@ -378,7 +378,7 @@ plot_serop_vs_mp_short
 ```{r infection vs seroprev composite figure, fig.width=6,fig.height=12, warning=FALSE}
 plot_serop_vs_mp_comp <- grid.arrange(plot_serop_vs_mp,plot_serop_vs_mp_long,plot_serop_vs_mp_short,ncol=1,nrow=3)
 
-ggsave(here("figures","mordor-ab-serop-vs-mp.png"),plot_serop_vs_mp_comp,device="png",height=15,width=5)
+ggsave(here("figures","mordor-ab-serop-vs-mp.pdf"),plot_serop_vs_mp_comp,device="pdf",height=15,width=5)
 
 
 ```
@@ -573,14 +573,14 @@ plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit,
   scale_color_manual(values = pcols) +
   scale_fill_manual(values = pcols) +
   coord_cartesian(ylim = c(0,1.04), xlim = c(0,60)) +
-  labs(x = "age, months", y = expression(paste(italic("P. falciparum")," IgG seroprevalence (%)"))) +
+  labs(x = "Age, months", y = expression(paste(italic("P. falciparum")," IgG seroprevalence (%)"))) +
   theme_minimal(base_size = 14) +
   theme(
     legend.position = "none"
   )
 plot_age_seroprev_malaria
 
-ggsave(here("figures","mordor-ab-age-curves-malaria-parasitemia-stratified.png"),plot_age_seroprev_malaria, device = "png", width = 8, height = 4)
+ggsave(here("figures","mordor-ab-age-curves-malaria-parasitemia-stratified.pdf"),plot_age_seroprev_malaria, device = "pdf", width = 8, height = 4)
 
 ```
 

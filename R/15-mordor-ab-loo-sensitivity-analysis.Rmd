@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Leave-one-out jackknife sensitivity analysis"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -293,7 +293,7 @@ loo_serop_plot <- ggplot(data = loo_serop_sum, aes(x = antigenf, y = diff)) +
   geom_text(data=loo_mu2, aes(x = antigenf, y = -0.24, label = jkn_bias_lab),pch=1, size=3) +
   scale_y_continuous(breaks = seq(-0.25,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.25,0.1,by=0.05)*100)) +
   coord_cartesian(ylim=c(-0.25,0.11)) +
-  labs(x = "",y = "difference in seroprevalence (%)\nazithromycin - placebo", tag = "a") +
+  labs(x = "",y = "Difference in seroprevalence (%)\nazithromycin - placebo", tag = "a") +
   theme(
     axis.text.x = element_text(angle=90,hjust=1),
     plot.tag = element_text(face = "bold")
@@ -301,7 +301,7 @@ loo_serop_plot <- ggplot(data = loo_serop_sum, aes(x = antigenf, y = diff)) +
 
 loo_serop_plot
 
-ggsave(here("figures","mordor-ab-diff-seroprev-loo-sens.png"),loo_serop_plot,device = "png",width = 7, height = 6)
+ggsave(here("figures","mordor-ab-diff-seroprev-loo-sens.pdf"),loo_serop_plot,device = "pdf",width = 7, height = 6)
 
 ```
 Leave-one-out sensitivity analyses that excluded each of the 30 study communities and re-estimated the difference in seroprevalence between groups and the relative hazard of seroconversion. Light points mark the 30 leave-one-out replicates, black circles mark the mean over leave-one-out replicates. Horizontal lines mark the mean in the full sample and vertical lines the 95% confidence interval. Jackknife estimates of the bias are printed at the bottom of each panel, above the pathogen/antigen labels. (**a**) Difference in seroprevalence between groups. Jackknife estimates of the bias are on the percentage point scale, all <0.03%. 
@@ -421,7 +421,7 @@ loo_hr_plot <- ggplot(data = loo_loghr_sum , aes(x = antigenf, y = hr)) +
   geom_text(data=loo_loghr_mu2, aes(x = antigenf, y = 0.35, label = jkn_bias_lab),pch=1, size=3) +
   scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
   coord_cartesian(ylim=c(0.3,2)) +
-  labs(x = "",y = "hazard ratio of seroconversion\nazithromycin / placebo", tag = "b") +
+  labs(x = "",y = "Hazard ratio of seroconversion\nazithromycin / placebo", tag = "b") +
   theme(
     axis.text.x = element_text(angle=90,hjust=1),
     plot.tag = element_text(face = "bold")
@@ -429,7 +429,7 @@ loo_hr_plot <- ggplot(data = loo_loghr_sum , aes(x = antigenf, y = hr)) +
 
 loo_hr_plot
 
-ggsave(here("figures","mordor-ab-hr-loo-sens.png"),loo_hr_plot,device = "png",width = 7, height = 6)
+ggsave(here("figures","mordor-ab-hr-loo-sens.pdf"),loo_hr_plot,device = "pdf",width = 7, height = 6)
 
 ```
 

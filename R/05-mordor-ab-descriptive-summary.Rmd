@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Descriptive summary of antibody distributions and age patterns"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -99,7 +99,7 @@ fit_age <- foreach(abi = levels(d3$antigenf), .combine = rbind) %do% {
 ```
 
 
-# Enterics and strep figure
+# Bacteria and protozoa figure
 
 ```{r age-dependent means figure enterics, fig.width = 6, fig.height = 12}
 #-----------------------------
@@ -143,7 +143,7 @@ plot_age_mfi_enterics <- ggplot(data = fit_age_enterics, aes(x = agem, y = fit))
   scale_y_continuous(breaks = 0:4, labels = log10labs) +
   scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=6)) +
   coord_cartesian(ylim = c(0,4.5)) +
-  labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "a") +
+  labs(x = "Age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "a") +
   theme(
     strip.text.y = element_text(angle = 0),
     plot.tag = element_text(face = "bold")
@@ -227,7 +227,7 @@ plot_dist_24to59 <- ggplot(data = fit_age_enterics %>% filter(agem>24), aes(x = 
 #-----------------------------
 pcurve_composite_enterics <- grid.arrange(plot_age_mfi_enterics,plot_dist_under6mo,plot_dist_6to24,plot_dist_24to59,ncol=4,nrow=1,widths=c(2.5,1.5,1.5,1.5))
 
-ggsave(here("figures","mordor-ab-antibody-distributions-bacteria-protozoa.png"),pcurve_composite_enterics, device = "png", width = 12, height = 20)
+ggsave(here("figures","mordor-ab-antibody-distributions-bacteria-protozoa.pdf"),pcurve_composite_enterics, device = "pdf", width = 12, height = 20)
 
 ```
 
@@ -277,7 +277,7 @@ plot_age_mfi_malaria <- ggplot(data = fit_age_malaria, aes(x = agem, y = fit)) +
   scale_y_continuous(breaks = 0:4, labels = log10labs) +
   scale_x_continuous(breaks = seq(0,60,by=12), minor_breaks = seq(0,60,by=6)) +
   coord_cartesian(ylim = c(0,4.5)) +
-  labs(x = "age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "a") +
+  labs(x = "Age, months", y = "Luminex response (MFI-bg)", title = "Age-dependent mean response", tag = "a") +
   theme(
     strip.text.y = element_text(angle = 0),
     plot.tag = element_text(face = "bold")
@@ -339,7 +339,7 @@ plot_dist_malaria_12to59 <- ggplot(data = fit_age_malaria %>% filter(agem>=12), 
 #-----------------------------
 pcurve_composite_malaria <- grid.arrange(plot_age_mfi_malaria,plot_dist_malaria_under12mo,plot_dist_malaria_12to59,ncol=3,nrow=1,widths=c(2.5,1.5,1.5))
 
-ggsave(here("figures","mordor-ab-antibody-distributions-malaria.png"),pcurve_composite_malaria, device = "png", width = 10, height = 16)
+ggsave(here("figures","mordor-ab-antibody-distributions-malaria.pdf"),pcurve_composite_malaria, device = "pdf", width = 10, height = 16)
 
 ```
 

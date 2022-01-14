@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Compare arms using MFI, seroprevalence, and SCR"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -319,7 +319,7 @@ knitr::kable(mu_mfi_table %>% slice(1:10),
              digits = c(0,3,3,0,2,2),
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 1, "Mean log10 IgG \nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
   footnote(
     symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method")
   )
@@ -369,7 +369,7 @@ plot_mfi_means_enterics <- ggplot(data = mu_mfi_plot %>% filter(group != "malari
   scale_x_discrete(position = "top") +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.3,-0.3) ), size = 3, hjust = 1 ) +
-  labs(x = NULL, y = "mean log10 Luminex response\n(MFI-bg)") +
+  labs(x = NULL, y = "Mean log10 IgG Luminex response\n(MFI-bg)") +
   
   # figure layout
   coord_flip() +
@@ -417,7 +417,7 @@ plot_mfi_diff_enterics <- ggplot(data = mu_mfi_plot2 %>% filter(group != "malari
 ```{r mfi composite figure bacteria, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_mfi_comp_enterics <- grid.arrange(plot_mfi_means_enterics,plot_mfi_diff_enterics,ncol=2,nrow=1, widths = c(4,3))
 
-ggsave(here("figures","mordor-ab-diff-mfi-bacteria-protozoa.png"),plot_mfi_comp_enterics,device = "png",width = 8, height = 3)
+ggsave(here("figures","mordor-ab-diff-mfi-bacteria-protozoa.pdf"),plot_mfi_comp_enterics,device = "pdf",width = 8, height = 3)
 ```
 
 
@@ -429,7 +429,7 @@ knitr::kable(mu_mfi_table %>% slice(11:19),
              digits = c(0,3,3,0,2,2),
              align = "lcccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 1, "Mean log10 IgG\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
   footnote(symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method"))
 
 ```
@@ -459,7 +459,7 @@ plot_mfi_means_malaria <- ggplot(data = mu_mfi_plot %>% filter(group == "malaria
   scale_x_discrete(position = "top") +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.3,-0.3) ), size = 3, hjust = 1 ) +
-  labs(x = NULL, y = "mean log10 Luminex response\n(MFI-bg)") +
+  labs(x = NULL, y = "Mean log10 IgG Luminex response\n(MFI-bg)") +
   
   # figure layout
   coord_flip() +
@@ -497,7 +497,7 @@ plot_mfi_diff_malaria <- ggplot(data = mu_mfi_plot2 %>% filter(group == "malaria
 ```{r mfi composite figure malaria, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_mfi_comp_malaria <- grid.arrange(plot_mfi_means_malaria,plot_mfi_diff_malaria,ncol=2,nrow=1, widths = c(4,3))
 
-ggsave(here("figures","mordor-ab-diff-mfi-malaria.png"),plot_mfi_comp_malaria,device = "png",width = 8, height = 3)
+ggsave(here("figures","mordor-ab-diff-mfi-malaria.pdf"),plot_mfi_comp_malaria,device = "pdf",width = 8, height = 3)
 ```
 
 
@@ -688,7 +688,7 @@ plot_serop_means_enterics <- ggplot(data = mu_serop_plot %>% filter(group != "ma
   scale_y_continuous(breaks = seq(0,1,by=0.2), labels=sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.2,-0.2) ), size = 3, hjust = 1 ) +
-  labs(x = NULL, y = "seroprevalence (%)\n ") +
+  labs(x = NULL, y = "IgG seroprevalence (%)\n ") +
   
   # figure layout
   coord_flip(ylim=c(0,1)) +
@@ -719,7 +719,7 @@ plot_serop_diff_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group != "ma
   geom_point(alpha=1, color = vircols[4]) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = seq(-0.2,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.2,0.1,by=0.05)*100)) +
-  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo") +
+  labs(x = NULL, y = "Difference in seroprevalence (%)\nazithromycin - placebo") +
   coord_flip(ylim = c(-0.22,0.11)) +
   # theme_minimal() +
   theme(
@@ -735,7 +735,7 @@ plot_serop_diff_enterics <- ggplot(data = mu_serop_plot2 %>% filter(group != "ma
 ```{r serop composite figure enterics, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_serop_comp_enterics <- grid.arrange(plot_serop_means_enterics,plot_serop_diff_enterics,ncol=2,nrow=1, widths = c(4,2))
 
-ggsave(here("figures","mordor-ab-diff-seroprev-bacteria-protozoa.png"),plot_serop_comp_enterics,device = "png",width = 8, height = 2.5)
+ggsave(here("figures","mordor-ab-diff-seroprev-bacteria-protozoa.pdf"),plot_serop_comp_enterics,device = "pdf",width = 8, height = 2.5)
 ```
 
 
@@ -782,7 +782,7 @@ plot_serop_means_malaria <- ggplot(data = mu_serop_plot %>% filter(group == "mal
   scale_y_continuous(breaks = seq(0,1,by=0.2), labels=sprintf("%1.0f",seq(0,1,by=0.2)*100)) +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.25,-0.25) ), size = 3, hjust = 1 ) +
-  labs(x = NULL, y = "seroprevalence (%)\n ") +
+  labs(x = NULL, y = "IgG seroprevalence (%)\n ") +
   
   # figure layout
   coord_flip(ylim=c(0,0.8)) +
@@ -805,7 +805,7 @@ plot_serop_diff_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group == "mal
   geom_point(alpha=1, color=vircols[4]) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = seq(-0.15,0.1,by=0.05), labels=sprintf("%1.0f",seq(-0.15,0.1,by=0.05)*100)) +
-  labs(x = NULL, y = "difference in seroprevalence (%)\nazithromycin - placebo") +
+  labs(x = NULL, y = "Difference in seroprevalence (%)\nazithromycin - placebo") +
   coord_flip() +
   # theme_minimal() +
   theme(
@@ -821,7 +821,7 @@ plot_serop_diff_malaria <- ggplot(data = mu_serop_plot2 %>% filter(group == "mal
 ```{r serop composite figure malaria, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_serop_comp_malaria <- grid.arrange(plot_serop_means_malaria,plot_serop_diff_malaria,ncol=2,nrow=1, widths = c(4,2))
 
-ggsave(here("figures","mordor-ab-diff-seroprev-malaria.png"),plot_serop_comp_malaria,device = "png",width = 8, height = 2.5)
+ggsave(here("figures","mordor-ab-diff-seroprev-malaria.pdf"),plot_serop_comp_malaria,device = "pdf",width = 8, height = 2.5)
 ```
 
 # Force of infection by arm
@@ -983,7 +983,7 @@ plot_scr_means_enterics <- ggplot(data = mu_scr_plot %>% filter(group != "malari
   scale_y_continuous(breaks = seq(0,4,by=1)) +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.2,-0.2) ), size = 3, hjust = 0 ) +
-  labs(x = NULL, y = "force of infection\n(seroconversion rate per child-year)") +
+  labs(x = NULL, y = "Force of infection\n(seroconversion rate per child-year)") +
   
   # figure layout
   coord_flip(ylim=c(0,4)) +
@@ -1014,7 +1014,7 @@ plot_scr_hr_enterics <- ggplot(data = mu_scr_plot2 %>% filter(group != "malaria"
   geom_point(alpha=1, color=vircols[4]) +
   scale_color_manual(values = pcols) +
   scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
-  labs(x = NULL, y = "hazard ratio \nazithromycin / placebo") +
+  labs(x = NULL, y = "Hazard ratio \nazithromycin / placebo") +
   coord_flip(ylim=c(0.4,2)) +
   # theme_minimal() +
   theme(
@@ -1032,7 +1032,7 @@ plot_scr_hr_enterics <- ggplot(data = mu_scr_plot2 %>% filter(group != "malaria"
 ```{r scr composite figure bacteria, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_scr_comp <- grid.arrange(plot_scr_means_enterics,plot_scr_hr_enterics,ncol=2,nrow=1, widths = c(4,2))
 
-ggsave(here("figures","mordor-ab-scr-hr-bacteria-protozoa.png"),plot_scr_comp,device = "png",width = 8, height = 2.5)
+ggsave(here("figures","mordor-ab-scr-hr-bacteria-protozoa.pdf"),plot_scr_comp,device = "pdf",width = 8, height = 2.5)
 ```
 
 
@@ -1078,7 +1078,7 @@ plot_scr_means_malaria <- ggplot(data = mu_scr_plot %>% filter(group == "malaria
   scale_y_continuous(breaks = seq(0,0.8,by=0.2)) +
   # add annotation and labels
   geom_text(data=d_labels, aes(x = antigenf, y = mean, label=arm), position = position_nudge(x = c(0.25,-0.25) ), size = 3, hjust = 1 ) +
-  labs(x = NULL, y = "force of infection\n(seroconversion rate per child-year)") +
+  labs(x = NULL, y = "Force of infection\n(seroconversion rate per child-year)") +
   
   # figure layout
   coord_flip(ylim=c(0,0.8)) +
@@ -1101,7 +1101,7 @@ plot_scr_hr_malaria <- ggplot(data = mu_scr_plot2 %>% filter(group == "malaria")
   geom_errorbar(aes(ymin = hr_min95, ymax = hr_max95),width = 0.4,alpha=1,color = vircols[4]) +
   geom_point(alpha=1, color = vircols[4]) +
   scale_y_continuous(breaks = c(0.5,0.8,1,1.2,1.5,2),trans = "log") +
-  labs(x = NULL, y = "hazard ratio \nazithromycin / placebo") +
+  labs(x = NULL, y = "Hazard ratio \nazithromycin / placebo") +
   coord_flip(ylim=c(0.4,2)) +
   # theme_minimal() +
   theme(
@@ -1119,7 +1119,7 @@ plot_scr_hr_malaria <- ggplot(data = mu_scr_plot2 %>% filter(group == "malaria")
 ```{r scr composite figure malaria, fig.width = 10, fig.height = 5, warning = FALSE}
 plot_scr_comp_malaria <- grid.arrange(plot_scr_means_malaria,plot_scr_hr_malaria,ncol=2,nrow=1, widths = c(4,2))
 
-ggsave(here("figures","mordor-ab-scr-hr-malaria.png"),plot_scr_comp_malaria,device = "png",width = 8, height = 2.5)
+ggsave(here("figures","mordor-ab-scr-hr-malaria.pdf"),plot_scr_comp_malaria,device = "pdf",width = 8, height = 2.5)
 ```
 
 # Save estimates for comparison with longitudinal ests

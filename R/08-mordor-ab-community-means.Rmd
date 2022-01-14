@@ -1,5 +1,5 @@
 ---
-title: "Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children"
+title: "Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger"
 subtitle: "Community level summaries"
 author: "Ben Arnold ben.arnold@ucsf.edu"
 date: "updated: `r Sys.time()`"
@@ -471,7 +471,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   )
 p
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-bacteria-protozoa.png"),p, device = "png", width=7,height=1.9)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-bacteria-protozoa.pdf"),p, device = "pdf", width=7,height=1.9)
 
 
 ```
@@ -558,7 +558,7 @@ p <- ggplot(plot_mu_serop,aes(x=clrankf,y=antigenf,fill=seroprev*100)) +
   )
 p
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-malaria.png"),p, device = "png", width=6.5,height=2.5)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-heatmap-malaria.pdf"),p, device = "pdf", width=6.5,height=2.5)
 
 
 ```
@@ -587,7 +587,7 @@ p_comm <- ggplot(data = mu_serop %>% filter(group != "malaria" ), aes(x = arm, y
 
 p_comm
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-bacteria-protozoa.png"),p_comm, device = "png", width=6,height=6)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-bacteria-protozoa.pdf"),p_comm, device = "pdf", width=6,height=6)
 
 ```
 
@@ -611,7 +611,7 @@ p_comm <- ggplot(data = mu_serop %>% filter(group == "malaria"), aes(x = arm, y 
 p_comm
 
 
-ggsave(filename = here("figures","mordor-ab-community-seroprev-malaria.png"),p_comm, device = "png", width=5.5,height=6)
+ggsave(filename = here("figures","mordor-ab-community-seroprev-malaria.pdf"),p_comm, device = "pdf", width=5.5,height=6)
 
 ```
 # Community mean and ICC summary
