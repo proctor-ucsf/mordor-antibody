@@ -283,14 +283,14 @@ mu_mfi_table <- mu_mfi2 %>%
   ungroup() %>%
   left_join(mfi_phase_Ftest,by=c("antigenf","phasef")) %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
-  select(antigenf, phasef, placebo, azithro, diff_ci,intP,intPbh)
+  select(antigenf, phasef, placebo_n, placebo, azithro_n, azithro, diff_ci,intP,intPbh)
 
 knitr::kable(mu_mfi_table,
-             col.names = c("Pathogen, antigen", "Phase","Placebo","Azithro.","Difference (95% CI)","P-value*","Adj P-value†"), 
+             col.names = c("Pathogen, antigen", "Phase","N","Mean","N","Mean","log10 MFI-bg (95% CI)","P-value*","Adj P-value†"), 
              digits = 3,
              align = "lccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 2, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 2, "Placebo" = 2, "Azithromycin" = 2, "Difference in" = 1," " = 2)) %>%
   kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 40) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 41, end_row = 76) %>%
   footnote(
@@ -493,14 +493,14 @@ mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   left_join(serop_phase_Ftest, by = c("antigenf","phasef")) %>%
   mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
-  select(antigenf,phasef, placebo, azithro, diff_ci, intP, intPbh)
+  select(antigenf,phasef, placebo_n, placebo, azithro_n, azithro, diff_ci, intP, intPbh)
 
 knitr::kable(mu_serop_table,
-             col.names = c("Pathogen, antigen","Phase", "Placebo","Azithromycin","Difference (95% CI)","P-value*","Adj P-value†"), 
-             digits = c(0,0,2,2,0,3,3),
+             col.names = c("Pathogen, antigen","Phase", "N","Proportion\nSeropositive","N","Proportion\nSeropositive","Difference (95% CI)","P-value*","Adj P-value†"), 
+             digits = c(0,0,0,2,0,2,0,3,3),
              align = "lccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 2, "Proportion\nSeropositive" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 2, "Placebo" = 2, "Azithromycin" = 2, " " = 3)) %>%
   kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 24) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 25, end_row = 60) %>%
   footnote(
@@ -713,14 +713,14 @@ mu_mfi_table <- mu_mfi2 %>%
   ungroup() %>%
   left_join(mfi_age_Ftest,by=c("antigenf","agem_start_under6")) %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
-  select(antigenf, agem_start_under6, placebo, azithro, diff_ci,intP, intPbh)
+  select(antigenf, agem_start_under6, placebo_n, placebo, azithro_n, azithro, diff_ci,intP, intPbh)
 
 knitr::kable(mu_mfi_table,
-             col.names = c("Pathogen, antigen", "<= 6 months at trial start","Placebo","Azithro.","Difference (95% CI)","P-value*","Adj P-value†"), 
+             col.names = c("Pathogen, antigen", "≤6 months at trial start","N","Mean","N","Mean","log10 MFI-bg (95% CI)","P-value*","Adj P-value†"), 
              digits = 3,
              align = "lccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 2, "Mean log10\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 2, "Placebo" = 2, "Azithromycin" = 2,  "Difference in" = 1, " " = 2)) %>%
   kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 20) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 21, end_row = 38) %>%
   footnote(
@@ -925,14 +925,14 @@ mu_serop_table <- mu_serop2 %>%
   ungroup() %>%
   left_join(serop_age_Ftest, by = c("antigenf","agem_start_under6")) %>%
   mutate(diff_ci = paste0(sprintf("%1.2f",diff)," (",sprintf("%1.2f",diff_lb),", ", sprintf("%1.2f",diff_ub),")")) %>%
-  select(antigenf,agem_start_under6, placebo, azithro, diff_ci, intP,intPbh)
+  select(antigenf,agem_start_under6, placebo_n, placebo, azithro_n, azithro, diff_ci, intP,intPbh)
 
 knitr::kable(mu_serop_table,
-             col.names = c("Pathogen, antigen","<= 6 months at trial start", "Placebo","Azithromycin","Difference (95% CI)","P-value*","Adj P-value†"), 
-             digits = c(0,0,2,2,0,3,3),
+             col.names = c("Pathogen, antigen","≤6 months at trial start", "N","Proportion seropositive","N","Proportion seropositive","Difference (95% CI)","P-value*","Adj P-value†"), 
+             digits = c(0,0,0,2,0,2,0,3,3),
              align = "lccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 2, "Proportion\nSeropositive" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 2, "Placebo" = 2, "Azithromycin" = 2,  " " = 3)) %>%
   kableExtra::group_rows(group_label = "Bacteria and protozoa", start_row = 1, end_row = 12) %>%
   kableExtra::group_rows(group_label = "Malaria", start_row = 13, end_row = 30) %>%
   footnote(
