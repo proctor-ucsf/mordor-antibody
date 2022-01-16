@@ -386,6 +386,10 @@ d_foi <- d_serop %>%
          clusteridf = factor(clusterid),
          dummy = 1)
 
+# print the number of children included in the
+# analyses to confirm reporting in figure legend
+(table(d_foi$antigenf))
+
 #---------------------------------
 # estimate SCRs and HRs for each
 # pathogen

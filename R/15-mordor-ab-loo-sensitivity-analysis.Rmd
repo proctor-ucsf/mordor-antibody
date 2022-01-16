@@ -166,6 +166,9 @@ n_serop <- d_serop %>%
   rename(placebo_n = placebo,
          azithro_n = azithro)
 
+# print Ns for reporting in figure legends
+(n_serop)
+
 #-----------------------------
 # estimate seroprevalence by arm
 # and difference in seroprevalence
