@@ -311,15 +311,15 @@ mu_mfi_table <- mu_mfi2 %>%
   left_join(permute_mfi, by = "antigenf") %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
   mutate(permute_p = as.numeric(permute_p)) %>%
-  select(antigenf, placebo, azithro, diff_ci, permute_p) %>%
+  select(antigenf, placebo_n, placebo, azithro_n, azithro, diff_ci, permute_p) %>%
   mutate(bh_p = c(bh_p_enterics,bh_p_malaria))
 
 knitr::kable(mu_mfi_table %>% slice(1:10),
-             col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*","P-value†"), 
-             digits = c(0,3,3,0,2,2),
-             align = "lcccc") %>%
+             col.names = c("Pathogen, antigen", "N","Mean","N","Mean","Diff. (95% CI)","P-value*","P-value†"), 
+             digits = c(0,0,3,0,3,0,2,2),
+             align = "lccccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Mean log10 IgG \nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 1, "Placebo" = 2, "Azithromycin" = 2, "Difference in log10 IgG" = 1,  " " = 2)) %>%
   footnote(
     symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method")
   )
@@ -425,11 +425,11 @@ ggsave(here("figures","mordor-ab-diff-mfi-bacteria-protozoa.pdf"),plot_mfi_comp_
 ## Malaria MFI summary table
 ```{r MFI means table malaria}
 knitr::kable(mu_mfi_table %>% slice(11:19),
-             col.names = c("Pathogen, antigen", "Placebo","Azithro.","Difference (95% CI)","P-value*","P-value†"), 
-             digits = c(0,3,3,0,2,2),
-             align = "lcccc") %>%
+             col.names = c("Pathogen, antigen", "N","Mean","N","Mean","Diff. (95% CI)","P-value*","P-value†"), 
+             digits = c(0,0,3,0,3,0,2,2),
+             align = "lccccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Mean log10 IgG\nLuminex Response (MFI-bg)" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 1, "Placebo" = 2, "Azithromycin" = 2, "Difference in log10 IgG" = 1,  " " = 2)) %>%
   footnote(symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method"))
 
 ```
@@ -630,15 +630,15 @@ mu_serop_table <- mu_serop2 %>%
   left_join(permute_serop, by = "antigenf") %>%
   mutate(diff_ci = paste0(sprintf("%1.3f",diff)," (",sprintf("%1.3f",diff_lb),", ", sprintf("%1.3f",diff_ub),")")) %>%
   mutate(permute_p = as.numeric(permute_p)) %>%
-  select(antigenf,placebo, azithro, diff_ci, permute_p) %>%
+  select(antigenf,placebo_n, placebo, azithro_n, azithro, diff_ci, permute_p) %>%
   mutate(bh_p = c(bh_p_enterics,bh_p_malaria))
 
 knitr::kable(mu_serop_table %>% slice(1:6),
-             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*","P-value†"), 
+             col.names = c("Pathogen, antigen", "N", "Proportion seropositive","N", "Proportion seropositive","Difference (95% CI)","P-value*","P-value†"), 
              digits = 2,
-             align = "lcccc") %>%
+             align = "lcccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 1, "Placebo" = 2,"Azithromycin" = 2, " " = 3)) %>%
   footnote(
     symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method")
   )
@@ -742,11 +742,11 @@ ggsave(here("figures","mordor-ab-diff-seroprev-bacteria-protozoa.pdf"),plot_sero
 ## Malaria seroprevalence table
 ```{r seroprev means table malaria}
 knitr::kable(mu_serop_table %>% slice(7:15),
-             col.names = c("Pathogen, antigen", "Placebo","Azithromycin","Difference (95% CI)","P-value*","P-value†"), 
+             col.names = c("Pathogen, antigen", "N", "Proportion seropositive","N", "Proportion seropositive","Difference (95% CI)","P-value*","P-value†"), 
              digits = 2,
-             align = "lcccc") %>%
+             align = "lcccccc") %>%
   kable_styling(bootstrap_options = c("striped","condensed"),full_width = TRUE) %>%
-  add_header_above(c(" " = 1, "Proportion\nSeropositive" = 2,  " " = 3)) %>%
+  add_header_above(c(" " = 1, "Placebo" = 2,"Azithromycin" = 2, " " = 3)) %>%
   footnote(
     symbol=c("Exact permutation P-value.","Permutation P-value with false discovery rate correction using the Benjamini-Hochberg method")
   )
@@ -860,6 +860,10 @@ d_foi <- d_serop %>%
   mutate(antigenf = droplevels(antigenf),
          clusteridf = factor(clusterid),
          dummy = 1)
+
+# print the number of observations
+# included in each FOI analysis for legend reporting
+(table(d_foi$antigenf))
 
 set.seed(123)
 foi_ests <- foreach(ab=levels(d_foi$antigenf),.combine=rbind) %do% {
