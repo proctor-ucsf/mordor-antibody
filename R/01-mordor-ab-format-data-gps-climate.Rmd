@@ -46,7 +46,7 @@ Read in the final morbidity dataset shared by Jermey Keenan in December 2019.
 #-------------------------------
 # read in the full morbidity file
 #-------------------------------
-md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
+md <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
                       col_types = cols(code_bspot_ = col_character(),
                                        arm = col_character(),
                                        txlabelgwu = col_character(),
@@ -58,7 +58,7 @@ md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-m
 # and drop study IDs to protect
 # PII for public-facing data
 #-------------------------------
-public_ids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv")
+public_ids <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv")
 
 md2 <- md %>%
   left_join(public_ids, by = c("gwu","txlabelgwu","masterperson_mcd"))
@@ -73,7 +73,7 @@ Load GPS centroids for MORDOR morbidity clusters
 # Load MORDOR morbidity cluster
 # GPS coordinates
 #-------------------------------
-d_gps <- read_csv("~/Box/mordor/mordor data/data/final-gps/mordor-morbidity-cluster-gps.csv")
+d_gps <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-gps/mordor-morbidity-cluster-gps.csv")
 
 #-------------------------------
 # merge the cluster IDs

@@ -33,7 +33,7 @@ source(here("R","mordor-ab-Config.R"))
 # load the raw MBA data sent from
 # Diana Martin at CDC
 #-------------------------------
-d <- read_csv("~/Box/mordor/mordor data/data/untouched-dbs/MORDOR MBA Raw Data Compiled 100219.csv")
+d <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/untouched-dbs/MORDOR MBA Raw Data Compiled 100219.csv")
 
 
 #-------------------------------
@@ -134,7 +134,7 @@ Read in the final morbidity dataset shared by Jermey Keenan in December 2019.  V
 #-------------------------------
 # read in the full morbidity file
 #-------------------------------
-md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
+md <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-merged-20Mar2019.csv",
                       col_types = cols(code_bspot_ = col_character(),
                                        arm = col_character(),
                                        txlabelgwu = col_character(),
@@ -154,9 +154,9 @@ md <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/MORDOR-Morbidity-m
 # and can still be included in 
 # the analysis
 #-------------------------------
-public_clids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-cluster.csv")
+public_clids <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-cluster.csv")
 
-public_ids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv") %>%
+public_ids <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv") %>%
   select(-gwu, -clusterid_public)
 
 md2 <- public_clids %>%
@@ -253,7 +253,7 @@ d4 <- d3 %>%
 
 # do not save a file for now.
 # instead, print to HTML notebook
-# write_csv(dbs_nomatch,"~/Box/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
+# write_csv(dbs_nomatch,"~/Library/CloudStorage/Box-Box/mordor-ab/data/temp/mordor-ab-dbs-nomatch.csv")
 dbs_nomatch
 
 
@@ -388,7 +388,7 @@ comd <- d4 %>%
   dplyr::select(clusterid_public,arm) %>%
   group_by(clusterid_public) %>%
   slice(1)
-write_csv(comd,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
+write_csv(comd,"~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-dbs/mordor-ab-tr.csv")
 
 #-------------------------------
 # create a set of re-randomized
@@ -779,8 +779,8 @@ d11 <- d10 %>%
          malaria_thicksmear,malaria_density,malaria_gameto,
          dbsid,type,well,pathogen,antigen,antigenf,
          mfi,logmfi,serocut,serocut_desc,seropos)
-write_rds(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
-write_csv(d11,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
+write_rds(d11,"~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.rds")
+write_csv(d11,"~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis.csv")
 
 #-------------------------------
 # save a public version of the 
@@ -801,8 +801,8 @@ d12 <- d12 %>%
   mutate(antigenf = factor(antigenf))
 summary(d12)
 
-write_rds(d12,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis-public.rds")
-write_csv(d12,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis-public.csv")
+write_rds(d12,"~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis-public.rds")
+write_csv(d12,"~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-dbs/mordor-ab-analysis-public.csv")
 
 ```
 
@@ -814,7 +814,7 @@ Treatment coverage data are stored in a separate file from the morbidity data. H
 #-------------------------------
 # read in the raw file
 #-------------------------------
-dtr <-read_csv("~/Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger-long-dedupe-forYing.csv") %>%
+dtr <-read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger-long-dedupe-forYing.csv") %>%
   rename(masterperson_mcd = masterperson)
 
 #-------------------------------
@@ -822,7 +822,7 @@ dtr <-read_csv("~/Box/mordor/mordor data/data/final-morbidity/Stata-mordor-Niger
 # and drop study IDs to protect
 # PII for public-facing data
 #-------------------------------
-public_ids <- read_csv("~/Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv")
+public_ids <- read_csv("~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-morbidity/public-IDs/mordor-morbidity-public-IDs-child.csv")
 dtr2 <- dtr %>%
   left_join(public_ids, by = c("masterperson_mcd"))
 
@@ -886,8 +886,8 @@ day(dtr4$trdate)    <- 15
 # summarize and save the treatment data
 #-------------------------------
 summary(dtr4)
-write_rds(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment-public.rds")
-write_csv(dtr4,"~/Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment-public.csv")
+write_rds(dtr4,"~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment-public.rds")
+write_csv(dtr4,"~/Library/CloudStorage/Box-Box/mordor/mordor data/data/final-dbs/mordor-ab-treatment-public.csv")
 
 ```
 
