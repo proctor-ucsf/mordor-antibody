@@ -162,6 +162,14 @@ mu_p <- mu_p %>%
     spread(name, value) %>% 
     rename("pfprev_lb" = "1", "pfprev_ub" = "2")
 
+#-----------------------------
+# print the total Ns included
+# in the analysis for each
+# measure of malaria
+#-----------------------------
+(sum(mu_p$nobs_ab))
+(sum(mu_p$nobs_ts))
+
 ```
 
 
