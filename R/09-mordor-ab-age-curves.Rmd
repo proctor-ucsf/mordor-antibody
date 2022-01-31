@@ -597,6 +597,7 @@ plot_age_seroprev_campy <- ggplot(data = fit_camp2 , aes(x = agem, y = fit, grou
 
 plot_age_seroprev_campy
 
+ggsave(here("figures","mordor-ab-age-curves-campy.png"),plot_age_seroprev_campy, device = "png", width = 4, height = 4)
 ggsave(here("figures","mordor-ab-age-curves-campy.pdf"),plot_age_seroprev_campy, device = "pdf", width = 4, height = 4)
 
 ```

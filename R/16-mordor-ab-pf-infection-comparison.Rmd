@@ -588,6 +588,7 @@ plot_age_seroprev_malaria <- ggplot(data = fitp_malaria , aes(x = agem, y = fit,
   )
 plot_age_seroprev_malaria
 
+ggsave(here("figures","mordor-ab-age-curves-malaria-parasitemia-stratified.png"),plot_age_seroprev_malaria, device = "png", width = 8, height = 4)
 ggsave(here("figures","mordor-ab-age-curves-malaria-parasitemia-stratified.pdf"),plot_age_seroprev_malaria, device = "pdf", width = 8, height = 4)
 
 ```
