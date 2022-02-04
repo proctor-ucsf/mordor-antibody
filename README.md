@@ -6,7 +6,7 @@ Analysis of multiplex antibody endpoints in the MORDOR Niger trial
 
 This repository includes R code to run all of the analysis for the paper:
 
-_Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children_
+_Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger_
 
 currently in press at _Nature Communications_
 
