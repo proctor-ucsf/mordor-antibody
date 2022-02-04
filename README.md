@@ -8,7 +8,7 @@ This repository includes R code to run all of the analysis for the paper:
 
 _Biannual azithromycin distribution and antibody responses to malaria, bacterial, and protozoan pathogens among Nigerien children_
 
-(currently under peer review)
+currently in press at _Nature Communications_
 
 A preprint of the article is available through medRxiv:
 
@@ -30,6 +30,8 @@ The data have also been archived on Dryad: https://datadryad.org/stash/dataset/d
 Arnold et al. (2021), Multiplex IgG antibody response and malaria parasitemia among children ages 1-59 months in the MORDOR Niger trial, 2015-2018, Dryad, Dataset, https://doi.org/10.7272/Q6VX0DSD
 
 ## _Nature_ Research Code Submission Items
+
+Following: https://www.nature.com/documents/nr-software-policy.pdf
 
 ### System Requirements
 
