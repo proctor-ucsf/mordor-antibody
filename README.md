@@ -71,7 +71,11 @@ The first two data processing scripts will not run because they read in our inte
 
 You can run the `.Rmd` notebook scripts one-by-one or you can compile `mordor-ab-run-all.R`, which is the file we used to run the final analyses (e.g., from the command line `R CMD BATCH mordor-ab-run-all.R &`).
 
-Running the all analyses on the above Mac desktop configuration required 31 minutes.
+Running the all analyses on the above Mac desktop configuration required 31 minutes. 
+
+Note that the only script that takes very long is `08-mordor-ab-community-means.Rmd` because estimating the ICCs and 95% CIs by bootstrapping binomial mixed models is computationally slow. 
+
+Also note: we attempted to create a Binder virtual machine option for this project, but the underlying `.rds` dataset is so large (30 MB) that it took too long to spawn a remote docker container on the Binder server, and we didn't have time to troubleshoot/optimize.
 
 ### License
 
