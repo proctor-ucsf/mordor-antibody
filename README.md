@@ -8,11 +8,9 @@ This repository includes R code to run all of the analysis for the paper:
 
 _Effect of biannual azithromycin distribution on antibody responses to malaria, bacterial, and protozoan pathogens in Niger_
 
-currently in press at _Nature Communications_
+Arzika, A. M., Maliki, R., Goodhew, E. B., Rogier, E., Priest, J. W., Lebas, E., O’Brien, K. S., Le, V., Oldenburg, C. E., Doan, T., Porco, T. C., Keenan, J. D., Lietman, T. M., Martin, D. L., Arnold, B. F. & MORDOR-Niger Study Group. _Nat. Commun._ 13, 976 (2022). https://pubmed.ncbi.nlm.nih.gov/35190534/
 
-A preprint of the article is available through medRxiv:
-
-https://www.medrxiv.org/content/10.1101/2021.04.23.21255957v1
+https://www.nature.com/articles/s41467-022-28565-5
 
 Should you have any questions about the files in this repository, please contact Ben Arnold at UCSF (ben.arnold@ucsf.edu).
 
